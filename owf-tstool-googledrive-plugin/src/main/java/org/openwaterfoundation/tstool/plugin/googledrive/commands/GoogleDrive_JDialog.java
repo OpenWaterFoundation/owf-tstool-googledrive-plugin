@@ -103,10 +103,8 @@ private JTextField __DeleteFoldersMinDepth_JTextField = null;
 */
 
 // Download tab.
-/*
 private JTextArea __DownloadFiles_JTextArea = null;
 private JTextArea __DownloadFolders_JTextArea = null;
-*/
 
 // List Buckets tab.
 /*
@@ -115,11 +113,12 @@ private JTextField __ListBucketsCountProperty_JTextField = null;
 */
 
 // List Objects tab.
-private SimpleJComboBox __ListObjectsScope_JComboBox = null;
-private JTextField __Prefix_JTextField = null;
+private SimpleJComboBox __ListScope_JComboBox = null;
+private JTextField __ListFolderPath_JTextField = null;
 private JTextField __ListRegEx_JTextField = null;
 private SimpleJComboBox __ListFiles_JComboBox = null;
 private SimpleJComboBox __ListFolders_JComboBox = null;
+private SimpleJComboBox __ListTrashed_JComboBox = null;
 private JTextField __MaxKeys_JTextField = null;
 private JTextField __MaxObjects_JTextField = null;
 private JTextField __ListCountProperty_JTextField = null;
@@ -272,21 +271,21 @@ public void actionPerformed( ActionEvent event ) {
         }
     }
     */
-    /*
     else if ( event.getActionCommand().equalsIgnoreCase("EditDownloadFolders") ) {
         // Edit the dictionary in the dialog.  It is OK for the string to be blank.
         String DownloadFolders = __DownloadFolders_JTextArea.getText().trim();
         String [] notes = {
-            "Specify the S3 bucket folder path key (e.g., topfolder/childfolder/) to download.",
+            "Specify the Google Drive folder path (e.g., topfolder/childfolder/) to download.",
             "Only folders (directories) can be downloaded. Specify files to download with the 'DownloadFiles' command parameter.",
-            "A leading / in the folder key should be used only if the S3 bucket uses a top-level /.",
-            "A trailing / in the bucket prefix (S3 directory path) is required to indicate a folder.",
-            "The local folder is relative to the working folder:",
+            "A leading / is equivalent to no leading /.",
+            "A trailing / is equivalent to no trailing /.",
+            "The local folder is relative to the working folder.",
+            "Do not include 'My Drive' at the start of the folder.",
             "  " + this.__working_dir,
             "${Property} notation can be used for all values to expand at run time."
         };
         String dict = (new DictionaryJDialog ( __parent, true, DownloadFolders,
-            "Edit DownloadFolders Parameter", notes, "S3 Folder Path (ending in /)", "Local Folder (optionally ending in /)",10)).response();
+            "Edit DownloadFolders Parameter", notes, "Google Drive Folder Path", "Local Folder (optionally ending in /)",10)).response();
         if ( dict != null ) {
             __DownloadFolders_JTextArea.setText ( dict );
             refresh();
@@ -296,23 +295,21 @@ public void actionPerformed( ActionEvent event ) {
         // Edit the dictionary in the dialog.  It is OK for the string to be blank.
         String DownloadFiles = __DownloadFiles_JTextArea.getText().trim();
         String [] notes = {
-            "Specify the bucket file object S3 key (e.g., topfolder/childfolder/file.ext) to download a file.",
+            "Specify the Google drive file (e.g., topfolder/childfolder/file.ext) to download a file.",
             "Only files can be downloaded.  Specify folders to download with the 'DownloadFolders' command parameter.",
-            "The key is the full path for the the file object.",
-            "A leading / in the folder key should be used only if the S3 bucket uses a top-level /.",
-            "The local file name can be * to use the same name as the S3 object.",
+            "A leading / is equivalent to no leading /.",
+            "The local file name ending in /* will use the same file name as the Google Drive file.",
             "The local file is relative to the working folder:",
             "  " + this.__working_dir,
             "${Property} notation can be used for all values to expand at run time."
         };
         String dict = (new DictionaryJDialog ( __parent, true, DownloadFiles,
-            "Edit DownloadFiles Parameter", notes, "S3 File Path", "Local File",10)).response();
+            "Edit DownloadFiles Parameter", notes, "Google Drive File Path", "Local File",10)).response();
         if ( dict != null ) {
             __DownloadFiles_JTextArea.setText ( dict );
             refresh();
         }
     }
-    */
 	else if ( o == __help_JButton ) {
 		//HelpViewer.getInstance().showHelp("command", "AwsS3", PluginMeta.getDocumentationRootUrl());
 	}
@@ -415,17 +412,18 @@ private void checkInput () {
 	//String DeleteFoldersScope = __DeleteFoldersScope_JComboBox.getSelected();
 	//String DeleteFoldersMinDepth = __DeleteFoldersMinDepth_JTextField.getText().trim();
 	// Download.
-	//String DownloadFolders = __DownloadFolders_JTextArea.getText().trim().replace("\n"," ");
-	//String DownloadFiles = __DownloadFiles_JTextArea.getText().trim().replace("\n"," ");
+	String DownloadFolders = __DownloadFolders_JTextArea.getText().trim().replace("\n"," ");
+	String DownloadFiles = __DownloadFiles_JTextArea.getText().trim().replace("\n"," ");
 	// List buckets.
 	//String ListBucketsRegEx = __ListBucketsRegEx_JTextField.getText().trim();
 	//String ListBucketsCountProperty = __ListBucketsCountProperty_JTextField.getText().trim();
 	// List bucket objects.
-	String ListObjectsScope = __ListObjectsScope_JComboBox.getSelected();
-	String Prefix = __Prefix_JTextField.getText().trim();
+	String ListScope = __ListScope_JComboBox.getSelected();
+	String ListFolderPath = __ListFolderPath_JTextField.getText().trim();
 	String ListRegEx = __ListRegEx_JTextField.getText().trim();
 	String ListFiles = __ListFiles_JComboBox.getSelected();
 	String ListFolders = __ListFolders_JComboBox.getSelected();
+	String ListTrashed = __ListTrashed_JComboBox.getSelected();
 	String MaxKeys = __MaxKeys_JTextField.getText().trim();
 	String MaxObjects = __MaxObjects_JTextField.getText().trim();
 	String ListCountProperty = __ListCountProperty_JTextField.getText().trim();
@@ -468,6 +466,7 @@ private void checkInput () {
 	if ( (DeleteFoldersMinDepth != null) && !DeleteFoldersMinDepth.isEmpty() ) {
 		props.set ( "DeleteFoldersMinDepth", DeleteFoldersMinDepth );
 	}
+	*/
 	// Download.
 	if ( (DownloadFolders != null) && !DownloadFolders.isEmpty() ) {
 		props.set ( "DownloadFolders", DownloadFolders );
@@ -475,6 +474,7 @@ private void checkInput () {
 	if ( (DownloadFiles != null) && !DownloadFiles.isEmpty() ) {
 		props.set ( "DownloadFiles", DownloadFiles );
 	}
+	/*
 	// List buckets.
 	if ( (ListBucketsRegEx != null) && !ListBucketsRegEx.isEmpty() ) {
 		props.set ( "ListBucketsRegEx", ListBucketsRegEx );
@@ -484,11 +484,11 @@ private void checkInput () {
 	}
 	*/
 	// List bucket objects.
-	if ( (ListObjectsScope != null) && !ListObjectsScope.isEmpty() ) {
-		props.set ( "ListObjectsScope", ListObjectsScope);
+	if ( (ListScope != null) && !ListScope.isEmpty() ) {
+		props.set ( "ListScope", ListScope);
 	}
-	if ( (Prefix != null) && !Prefix.isEmpty() ) {
-		props.set ( "Prefix", Prefix );
+	if ( (ListFolderPath != null) && !ListFolderPath.isEmpty() ) {
+		props.set ( "ListFolderPath", ListFolderPath );
 	}
 	if ( (ListRegEx != null) && !ListRegEx.isEmpty() ) {
 		props.set ( "ListRegEx", ListRegEx );
@@ -498,6 +498,9 @@ private void checkInput () {
 	}
 	if ( (ListFolders != null) && !ListFolders.isEmpty() ) {
 		props.set ( "ListFolders", ListFolders );
+	}
+	if ( (ListTrashed != null) && !ListTrashed.isEmpty() ) {
+		props.set ( "ListTrashed", ListTrashed );
 	}
 	if ( (MaxKeys != null) && !MaxKeys.isEmpty() ) {
 		props.set ( "MaxKeys", MaxKeys );
@@ -560,17 +563,18 @@ private void commitEdits () {
 	//String DeleteFoldersScope = __DeleteFoldersScope_JComboBox.getSelected();
 	//String DeleteFoldersMinDepth = __DeleteFoldersMinDepth_JTextField.getText().trim();
 	// Download.
-	//String DownloadFolders = __DownloadFolders_JTextArea.getText().trim().replace("\n"," ");
-	//String DownloadFiles = __DownloadFiles_JTextArea.getText().trim().replace("\n"," ");
+	String DownloadFolders = __DownloadFolders_JTextArea.getText().trim().replace("\n"," ");
+	String DownloadFiles = __DownloadFiles_JTextArea.getText().trim().replace("\n"," ");
 	// List buckets.
 	//String ListBucketsRegEx = __ListBucketsRegEx_JTextField.getText().trim();
 	//String ListBucketsCountProperty = __ListBucketsCountProperty_JTextField.getText().trim();
 	// List bucket objects.
-	String ListObjectsScope = __ListObjectsScope_JComboBox.getSelected();
-	String Prefix = __Prefix_JTextField.getText().trim();
+	String ListScope = __ListScope_JComboBox.getSelected();
+	String ListFolderPath = __ListFolderPath_JTextField.getText().trim();
 	String ListRegEx = __ListRegEx_JTextField.getText().trim();
 	String ListFiles = __ListFiles_JComboBox.getSelected();
 	String ListFolders = __ListFolders_JComboBox.getSelected();
+	String ListTrashed = __ListTrashed_JComboBox.getSelected();
 	String MaxKeys = __MaxKeys_JTextField.getText().trim();
 	String MaxObjects = __MaxObjects_JTextField.getText().trim();
 	String ListCountProperty = __ListCountProperty_JTextField.getText().trim();
@@ -595,17 +599,18 @@ private void commitEdits () {
 	//__command.setCommandParameter ( "DeleteFoldersScope", DeleteFoldersScope );
 	//__command.setCommandParameter ( "DeleteFoldersMinDepth", DeleteFoldersMinDepth );
 	// Download.
-	//__command.setCommandParameter ( "DownloadFolders", DownloadFolders );
-	//__command.setCommandParameter ( "DownloadFiles", DownloadFiles );
+	__command.setCommandParameter ( "DownloadFolders", DownloadFolders );
+	__command.setCommandParameter ( "DownloadFiles", DownloadFiles );
 	// List Buckets.
 	//__command.setCommandParameter ( "ListBucketsRegEx", ListBucketsRegEx );
 	//__command.setCommandParameter ( "ListBucketsCountProperty", ListBucketsCountProperty );
 	// List Objects.
-	__command.setCommandParameter ( "ListObjectsScope", ListObjectsScope );
-	__command.setCommandParameter ( "Prefix", Prefix );
+	__command.setCommandParameter ( "ListScope", ListScope );
+	__command.setCommandParameter ( "ListFolderPath", ListFolderPath );
 	__command.setCommandParameter ( "ListRegEx", ListRegEx );
 	__command.setCommandParameter ( "ListFiles", ListFiles );
 	__command.setCommandParameter ( "ListFolders", ListFolders );
+	__command.setCommandParameter ( "ListTrashed", ListTrashed );
 	__command.setCommandParameter ( "MaxKeys", MaxKeys );
 	__command.setCommandParameter ( "MaxObjects", MaxObjects );
 	__command.setCommandParameter ( "ListCountProperty", ListCountProperty );
@@ -634,9 +639,9 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
 	addWindowListener( this );
 
     Insets insetsTLBR = new Insets(2,2,2,2);
-    
+
     // Create a session using authentication method.
-    
+
     try {
 		String AuthenticationMethod = __command.getCommandParameters().getValue ( "AuthenticationMethod" );
 		GoogleDriveAuthenticationMethodType authenticationMethod =
@@ -658,10 +663,10 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
         + "  Google Drive provides cloud storage for files." ),
 		0, ++y, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(main_JPanel, new JLabel (
-    	"Google Drive stores folders and files using an ID containing characters and numbers, which is used in URLs."),
+    	"Google Drive stores folders and files using a long ID containing characters and numbers, which is used in URLs."),
 		0, ++y, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(main_JPanel, new JLabel (
-    	"However, this command uses folder and file names as shown in the Google Drive G: drive on Windows."),
+    	"However, this command uses folder and file names as shown in the My Drive folder."),
 		0, ++y, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(main_JPanel, new JLabel (
     	"Paths for this command are specified without the leading 'G:/My Drive' and should use forward slashes."),
@@ -688,7 +693,7 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
 
    	this.ignoreEvents = true; // So that a full pass of initialization can occur.
 
-    JGUIUtil.addComponent(main_JPanel, new JLabel ( "Authentication type:"),
+    JGUIUtil.addComponent(main_JPanel, new JLabel ( "Authentication method:"),
 		0, ++y, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
 	__AuthenticationMethod_JComboBox = new SimpleJComboBox ( false );
 	__AuthenticationMethod_JComboBox.setToolTipText("Google Drive command to execute.");
@@ -855,7 +860,6 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
         3, yDelete, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
         */
 
-    /*
     // Panel for 'Download' parameters:
     // - map bucket objects to files and folders
     int yDownload = -1;
@@ -865,7 +869,7 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
 
     JGUIUtil.addComponent(download_JPanel, new JLabel ("Specify files and folders to download."),
 		0, ++yDownload, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(download_JPanel, new JLabel ("Use the 'Edit' button to view information about S3 and local file and folder paths."),
+    JGUIUtil.addComponent(download_JPanel, new JLabel ("Use the 'Edit' button to view information about Google Drive and local file and folder paths."),
 		0, ++yDownload, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(download_JPanel, new JSeparator(SwingConstants.HORIZONTAL),
     	0, ++yDownload, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST);
@@ -875,11 +879,11 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     __DownloadFolders_JTextArea = new JTextArea (6,35);
     __DownloadFolders_JTextArea.setLineWrap ( true );
     __DownloadFolders_JTextArea.setWrapStyleWord ( true );
-    __DownloadFolders_JTextArea.setToolTipText("Key1:Folder1,Key2:Folder2,...");
+    __DownloadFolders_JTextArea.setToolTipText("GoogleDrivePath1:Folder1,GoogleDrivePath2:Folder2,...");
     __DownloadFolders_JTextArea.addKeyListener (this);
     JGUIUtil.addComponent(download_JPanel, new JScrollPane(__DownloadFolders_JTextArea),
         1, yDownload, 2, 2, 1, 0, insetsTLBR, GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(download_JPanel, new JLabel ("S3 bucket key(s) (prefix) and local folder(s)."),
+    JGUIUtil.addComponent(download_JPanel, new JLabel ("Google Drive folder path(s) and local folder(s)."),
         3, yDownload, 4, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST );
     JGUIUtil.addComponent(download_JPanel, new SimpleJButton ("Edit","EditDownloadFolders",this),
         3, ++yDownload, 4, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST );
@@ -889,15 +893,14 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     __DownloadFiles_JTextArea = new JTextArea (6,35);
     __DownloadFiles_JTextArea.setLineWrap ( true );
     __DownloadFiles_JTextArea.setWrapStyleWord ( true );
-    __DownloadFiles_JTextArea.setToolTipText("Key1:File1,Key2:File2,...");
+    __DownloadFiles_JTextArea.setToolTipText("GoogleDrivePath1:File1,GoogleDrivePath2:File2,...");
     __DownloadFiles_JTextArea.addKeyListener (this);
     JGUIUtil.addComponent(download_JPanel, new JScrollPane(__DownloadFiles_JTextArea),
         1, yDownload, 2, 2, 1, 0, insetsTLBR, GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(download_JPanel, new JLabel ("S3 bucket key(s) (prefix) and local file(s)."),
+    JGUIUtil.addComponent(download_JPanel, new JLabel ("Google Drive file path(s) nd local file(s)."),
         3, yDownload, 4, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST );
     JGUIUtil.addComponent(download_JPanel, new SimpleJButton ("Edit","EditDownloadFiles",this),
         3, ++yDownload, 4, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST );
-        */
 
     /*
     // Panel for 'List Buckets' parameters.
@@ -936,23 +939,23 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
         3, yListBuckets, 3, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
         */
 
-    // Panel for 'List Files' parameters:
+    // Panel for 'List' parameters:
     // - this includes filtering
-    int yListFiles = -1;
-    JPanel listFiles_JPanel = new JPanel();
-    listFiles_JPanel.setLayout( new GridBagLayout() );
-    __main_JTabbedPane.addTab ( "List Files", listFiles_JPanel );
+    int yList = -1;
+    JPanel list_JPanel = new JPanel();
+    list_JPanel.setLayout( new GridBagLayout() );
+    __main_JTabbedPane.addTab ( "List", list_JPanel );
 
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel (
-    	"List all Google Drive files that are visible to the user based on credentials."
+    JGUIUtil.addComponent(list_JPanel, new JLabel (
+    	"List Google Drive files and folders that are visible to the user based on credentials."
     	+ "  See the 'Output' tab to specify the output file and/or table for the output list."),
-		0, ++yListFiles, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel (
+		0, ++yList, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel (
     	"Limit the output using parameters as follows and by using the 'Regular expression', 'List files', and 'List folders' filters."),
-		0, ++yListFiles, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+		0, ++yList, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     //String style = " style=\"border: 1px solid black; border-collapse: collapse; background-color: white;\"";
     String style = " style=\"border-collapse: collapse; border-spacing: 0px;\"";
-    String tableStyle = style; 
+    String tableStyle = style;
     String trStyle = "";
     String tdStyle = " style=\"border: 1px solid black; background-color: white;\"";
     String table =
@@ -961,91 +964,86 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     		+ "    <tr" + trStyle + ">"
     		+ "       <th" + tdStyle + ">List what?</th>"
     		+ "       <th" + tdStyle + ">List scope</th>"
-    		+ "       <th" + tdStyle + ">Prefix to match</th>"
+    		+ "       <th" + tdStyle + ">Folder to match</th>"
     		+ "    </tr>"
     		+ "    <tr" + trStyle + ">"
-    		+ "       <td" + tdStyle + ">One object</td>"
+    		+ "       <td" + tdStyle + ">One file (<b>not currently supported</b>)</td>"
     		+ "       <td" + tdStyle + ">All (default)</td>"
     		+ "       <td" + tdStyle + ">Path for the object (/path/to/file)</td>"
     		+ "    </tr>"
     		+ "    <tr" + trStyle + ">"
-    		+ "       <td" + tdStyle + ">Files in root</td>"
+    		+ "       <td" + tdStyle + ">Files in My Drive (<b>not currently supported</b>)</td>"
     		+ "       <td" + tdStyle + ">Folder</td>"
-    		+ "       <td" + tdStyle + "></td>"
+    		+ "       <td" + tdStyle + ">/</td>"
     		+ "    </tr>"
     		+ "    <tr" + trStyle + ">"
     		+ "       <td" + tdStyle + ">Files in folder</td>"
     		+ "       <td" + tdStyle + ">Folder</td>"
-    		+ "       <td" + tdStyle + ">Folder path (key) ending in /</td>"
+    		+ "       <td" + tdStyle + ">Folder path ending in /</td>"
     		+ "    </tr>"
     		+ "    <tr" + trStyle + ">"
-    		+ "       <td" + tdStyle + ">All objects matching leading path</td>"
-    		+ "       <td" + tdStyle + ">All (default)</td>"
-    		+ "       <td" + tdStyle + ">Path (key) to match, can be partial file name</td>"
-    		+ "    </tr>"
-    		+ "    <tr" + trStyle + ">"
-    		+ "       <td" + tdStyle + ">All files in bucket</td>"
-    		+ "       <td" + tdStyle + ">All (default)</td>"
+    		+ "       <td" + tdStyle + ">All files in My Drive (<b>not currently supported</b>)</td>"
+    		+ "       <td" + tdStyle + ">All</td>"
     		+ "       <td" + tdStyle + "></td>"
     		+ "    </tr>"
     		+ "  </table>"
     		+ "</html>";
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel (table),
-		0, ++yListFiles, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel (table),
+		0, ++yList, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     Message.printStatus(2, "", table);
     /*
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel ("    list all objects in a bucket: ListScope=" + _All + ", Prefix"),
-		0, ++yListFiles, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel ("    no Prefix (and list only root) - list all the top-level (root) folder objects"),
-		0, ++yListFiles, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel ("    Prefix = folder1/ - list 'folder1/ objects (output will include the trailing /)"),
-		0, ++yListFiles, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel ("    Prefix = file or folder1/folder2/file - list one file (must match exactly)"),
-		0, ++yListFiles, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel ("    list all objects in a bucket: ListScope=" + _All + ", Prefix"),
+		0, ++yList, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel ("    no Prefix (and list only root) - list all the top-level (root) folder objects"),
+		0, ++yList, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel ("    Prefix = folder1/ - list 'folder1/ objects (output will include the trailing /)"),
+		0, ++yList, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel ("    Prefix = file or folder1/folder2/file - list one file (must match exactly)"),
+		0, ++yList, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 		*/
-    JGUIUtil.addComponent(listFiles_JPanel, new JSeparator(SwingConstants.HORIZONTAL),
-    	0, ++yListFiles, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JSeparator(SwingConstants.HORIZONTAL),
+    	0, ++yList, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST);
 
-   JGUIUtil.addComponent(listFiles_JPanel, new JLabel ( "List scope:"),
-		0, ++yListFiles, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
-	__ListObjectsScope_JComboBox = new SimpleJComboBox ( false );
-	__ListObjectsScope_JComboBox.setToolTipText("Scope (depth) of the list, which controls the output");
+   JGUIUtil.addComponent(list_JPanel, new JLabel ( "List scope:"),
+		0, ++yList, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
+	__ListScope_JComboBox = new SimpleJComboBox ( false );
+	__ListScope_JComboBox.setToolTipText("Scope (depth) of the list, which controls the output");
 	List<String> listRootChoices = new ArrayList<>();
 	listRootChoices.add ( "" );	// Default.
-	listRootChoices.add ( __command._All );
+	//listRootChoices.add ( __command._All );
+	//listRootChoices.add ( __command._File );
 	listRootChoices.add ( __command._Folder );
-	//listRootChoices.add ( __command._Root );
-	__ListObjectsScope_JComboBox.setData(listRootChoices);
-	__ListObjectsScope_JComboBox.select ( 0 );
-	__ListObjectsScope_JComboBox.addActionListener ( this );
-    JGUIUtil.addComponent(listFiles_JPanel, __ListObjectsScope_JComboBox,
-		1, yListFiles, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel(
-		"Optional - scope (depth) of the listing (default=" + __command._All + ")."),
-		3, yListFiles, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	__ListScope_JComboBox.setData(listRootChoices);
+	__ListScope_JComboBox.select ( 0 );
+	__ListScope_JComboBox.addActionListener ( this );
+    JGUIUtil.addComponent(list_JPanel, __ListScope_JComboBox,
+		1, yList, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel(
+		"Optional - scope (depth) of the listing (default=" + __command._Folder + ")."),
+		3, yList, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel ( "Prefix to match:"),
-        0, ++yListFiles, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
-    __Prefix_JTextField = new JTextField ( "", 30 );
-    __Prefix_JTextField.setToolTipText("Specify the start of the key to match, ending in / if listing a folder's contents.");
-    __Prefix_JTextField.addKeyListener ( this );
-    JGUIUtil.addComponent(listFiles_JPanel, __Prefix_JTextField,
-        1, yListFiles, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel ( "Optional - object key prefix to match (default=list all)."),
-        3, yListFiles, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel ( "Folder path to list:"),
+        0, ++yList, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
+    __ListFolderPath_JTextField = new JTextField ( "", 30 );
+    __ListFolderPath_JTextField.setToolTipText("Specify the folder to list, ending in /.");
+    __ListFolderPath_JTextField.addKeyListener ( this );
+    JGUIUtil.addComponent(list_JPanel, __ListFolderPath_JTextField,
+        1, yList, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel ( "Optional - folder path to list (default=list all)."),
+        3, yList, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel ( "Regular expression:"),
-        0, ++yListFiles, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel ( "Regular expression:"),
+        0, ++yList, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
     __ListRegEx_JTextField = new JTextField ( "", 30 );
     __ListRegEx_JTextField.setToolTipText("Regular expression to filter results, default=glob (*) style");
     __ListRegEx_JTextField.addKeyListener ( this );
-    JGUIUtil.addComponent(listFiles_JPanel, __ListRegEx_JTextField,
-        1, yListFiles, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel ( "Optional - regular expression filter (default=none)."),
-        3, yListFiles, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, __ListRegEx_JTextField,
+        1, yList, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel ( "Optional - regular expression filter (default=none)."),
+        3, yList, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
-   JGUIUtil.addComponent(listFiles_JPanel, new JLabel ( "List files?:"),
-		0, ++yListFiles, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
+   JGUIUtil.addComponent(list_JPanel, new JLabel ( "List files?:"),
+		0, ++yList, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
 	__ListFiles_JComboBox = new SimpleJComboBox ( false );
 	__ListFiles_JComboBox.setToolTipText("Indicate whether to list files?");
 	List<String> listFilesChoices = new ArrayList<>();
@@ -1055,14 +1053,14 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
 	__ListFiles_JComboBox.setData(listFilesChoices);
 	__ListFiles_JComboBox.select ( 0 );
 	__ListFiles_JComboBox.addActionListener ( this );
-    JGUIUtil.addComponent(listFiles_JPanel, __ListFiles_JComboBox,
-		1, yListFiles, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel(
+    JGUIUtil.addComponent(list_JPanel, __ListFiles_JComboBox,
+		1, yList, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel(
 		"Optional - list files? (default=" + __command._True + ")."),
-		3, yListFiles, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+		3, yList, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
-   JGUIUtil.addComponent(listFiles_JPanel, new JLabel ( "List folders?:"),
-		0, ++yListFiles, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
+   JGUIUtil.addComponent(list_JPanel, new JLabel ( "List folders?:"),
+		0, ++yList, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
 	__ListFolders_JComboBox = new SimpleJComboBox ( false );
 	__ListFolders_JComboBox.setToolTipText("Indicate whether to list files?");
 	List<String> listFoldersChoices = new ArrayList<>();
@@ -1072,42 +1070,59 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
 	__ListFolders_JComboBox.setData(listFoldersChoices);
 	__ListFolders_JComboBox.select ( 0 );
 	__ListFolders_JComboBox.addActionListener ( this );
-    JGUIUtil.addComponent(listFiles_JPanel, __ListFolders_JComboBox,
-		1, yListFiles, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel(
+    JGUIUtil.addComponent(list_JPanel, __ListFolders_JComboBox,
+		1, yList, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel(
 		"Optional - list folders? (default=" + __command._True + ")."),
-		3, yListFiles, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+		3, yList, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel ( "Maximum keys:"),
-        0, ++yListFiles, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
+   JGUIUtil.addComponent(list_JPanel, new JLabel ( "List trashed?:"),
+		0, ++yList, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
+	__ListTrashed_JComboBox = new SimpleJComboBox ( false );
+	__ListTrashed_JComboBox.setToolTipText("Indicate whether to list files?");
+	List<String> listTrashedChoices = new ArrayList<>();
+	listTrashedChoices.add ( "" );	// Default.
+	listTrashedChoices.add ( __command._False );
+	listTrashedChoices.add ( __command._True );
+	__ListTrashed_JComboBox.setData(listTrashedChoices);
+	__ListTrashed_JComboBox.select ( 0 );
+	__ListTrashed_JComboBox.addActionListener ( this );
+    JGUIUtil.addComponent(list_JPanel, __ListTrashed_JComboBox,
+		1, yList, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel(
+		"Optional - list files? (default=" + __command._False + ")."),
+		3, yList, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+
+    JGUIUtil.addComponent(list_JPanel, new JLabel ( "Maximum keys:"),
+        0, ++yList, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
     __MaxKeys_JTextField = new JTextField ( "", 10 );
     __MaxKeys_JTextField.setToolTipText("Used internally by AWS web services.");
     __MaxKeys_JTextField.addKeyListener ( this );
-    JGUIUtil.addComponent(listFiles_JPanel, __MaxKeys_JTextField,
-        1, yListFiles, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel ( "Optional - maximum number of object keys read per request (default="
+    JGUIUtil.addComponent(list_JPanel, __MaxKeys_JTextField,
+        1, yList, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel ( "Optional - maximum number of object keys read per request (default="
     	+ this.__command._MaxKeys + ")."),
-        3, yListFiles, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+        3, yList, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel ( "Maximum objects:"),
-        0, ++yListFiles, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel ( "Maximum objects:"),
+        0, ++yList, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
     __MaxObjects_JTextField = new JTextField ( "", 10 );
     __MaxObjects_JTextField.setToolTipText("Use to limit the size of the query results.");
     __MaxObjects_JTextField.addKeyListener ( this );
-    JGUIUtil.addComponent(listFiles_JPanel, __MaxObjects_JTextField,
-        1, yListFiles, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel ( "Optional - maximum number of object read (default=2000)."),
-        3, yListFiles, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, __MaxObjects_JTextField,
+        1, yList, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel ( "Optional - maximum number of object read (default=2000)."),
+        3, yList, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel("List objects count property:"),
-        0, ++yListFiles, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel("List objects count property:"),
+        0, ++yList, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
     __ListCountProperty_JTextField = new JTextField ( "", 30 );
     __ListCountProperty_JTextField.setToolTipText("Specify the property name for the bucket object list result size, can use ${Property} notation");
     __ListCountProperty_JTextField.addKeyListener ( this );
-    JGUIUtil.addComponent(listFiles_JPanel, __ListCountProperty_JTextField,
-        1, yListFiles, 1, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listFiles_JPanel, new JLabel ( "Optional - processor property to set as object count." ),
-        3, yListFiles, 3, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, __ListCountProperty_JTextField,
+        1, yList, 1, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel ( "Optional - processor property to set as object count." ),
+        3, yList, 3, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
     /*
     // Panel for 'Upload' parameters:
@@ -1350,11 +1365,12 @@ private void refresh () {
 	String ListBucketsRegEx = "";
 	String ListBucketsCountProperty = "";
 	// List bucket objects.
-	String ListObjectsScope = "";
-	String Prefix = "";
+	String ListScope = "";
+	String ListFolderPath = "";
 	String ListRegEx = "";
 	String ListFiles = "";
 	String ListFolders = "";
+	String ListTrashed = "";
 	String MaxKeys = "";
 	String MaxObjects = "";
 	String ListCountProperty = "";
@@ -1389,11 +1405,12 @@ private void refresh () {
 		ListBucketsRegEx = parameters.getValue ( "ListBucketsRegEx" );
 		ListBucketsCountProperty = parameters.getValue ( "ListBucketsCountProperty" );
 		// List bucket objects.
-		ListObjectsScope = parameters.getValue ( "ListObjectsScope" );
-		Prefix = parameters.getValue ( "Prefix" );
+		ListScope = parameters.getValue ( "ListScope" );
+		ListFolderPath = parameters.getValue ( "ListFolderPath" );
 		ListRegEx = parameters.getValue ( "ListRegEx" );
 		ListFiles = parameters.getValue ( "ListFiles" );
 		ListFolders = parameters.getValue ( "ListFolders" );
+		ListTrashed = parameters.getValue ( "ListTrashed" );
 		MaxKeys = parameters.getValue ( "MaxKeys" );
 		MaxObjects = parameters.getValue ( "MaxObjects" );
 		ListCountProperty = parameters.getValue ( "ListCountProperty" );
@@ -1484,15 +1501,17 @@ private void refresh () {
 				"DeleteFoldersScope parameter \"" + DeleteFoldersScope + "\".  Select a value or Cancel." );
 			}
 		}
-        if ( DownloadFolders != null ) {
-            __DownloadFolders_JTextArea.setText ( DownloadFolders );
-        }
         if ( DeleteFoldersMinDepth != null ) {
             __DeleteFoldersMinDepth_JTextField.setText ( DeleteFoldersMinDepth );
+        }
+		*/
+        if ( DownloadFolders != null ) {
+            __DownloadFolders_JTextArea.setText ( DownloadFolders );
         }
         if ( DownloadFiles != null ) {
             __DownloadFiles_JTextArea.setText ( DownloadFiles );
         }
+        /*
         if ( ListBucketsRegEx != null ) {
             __ListBucketsRegEx_JTextField.setText ( ListBucketsRegEx );
         }
@@ -1500,23 +1519,23 @@ private void refresh () {
             __ListBucketsCountProperty_JTextField.setText ( ListBucketsCountProperty );
         }
         */
-		if ( JGUIUtil.isSimpleJComboBoxItem(__ListObjectsScope_JComboBox, ListObjectsScope,JGUIUtil.NONE, null, null ) ) {
-			__ListObjectsScope_JComboBox.select ( ListObjectsScope );
+		if ( JGUIUtil.isSimpleJComboBoxItem(__ListScope_JComboBox, ListScope,JGUIUtil.NONE, null, null ) ) {
+			__ListScope_JComboBox.select ( ListScope );
 		}
 		else {
-            if ( (ListObjectsScope == null) || ListObjectsScope.equals("") ) {
+            if ( (ListScope == null) || ListScope.equals("") ) {
 				// New command...select the default.
-				__ListObjectsScope_JComboBox.select ( 0 );
+				__ListScope_JComboBox.select ( 0 );
 			}
 			else {
 				// Bad user command.
 				Message.printWarning ( 1, routine,
 				"Existing command references an invalid\n"+
-				"ListObjectsScope parameter \"" + ListObjectsScope + "\".  Select a value or Cancel." );
+				"ListScope parameter \"" + ListScope + "\".  Select a value or Cancel." );
 			}
 		}
-        if ( Prefix != null ) {
-            __Prefix_JTextField.setText ( Prefix );
+        if ( ListFolderPath != null ) {
+            __ListFolderPath_JTextField.setText ( ListFolderPath );
         }
         if ( ListRegEx != null ) {
             __ListRegEx_JTextField.setText ( ListRegEx );
@@ -1549,6 +1568,21 @@ private void refresh () {
 				Message.printWarning ( 1, routine,
 				"Existing command references an invalid\n"+
 				"ListFolders parameter \"" + ListFolders + "\".  Select a value or Cancel." );
+			}
+		}
+		if ( JGUIUtil.isSimpleJComboBoxItem(__ListTrashed_JComboBox, ListTrashed,JGUIUtil.NONE, null, null ) ) {
+			__ListTrashed_JComboBox.select ( ListTrashed );
+		}
+		else {
+            if ( (ListTrashed == null) ||	ListTrashed.equals("") ) {
+				// New command...select the default.
+				__ListTrashed_JComboBox.select ( 0 );
+			}
+			else {
+				// Bad user command.
+				Message.printWarning ( 1, routine,
+				"Existing command references an invalid\n"+
+				"ListTrashed parameter \"" + ListTrashed + "\".  Select a value or Cancel." );
 			}
 		}
         if ( MaxKeys != null ) {
@@ -1643,19 +1677,22 @@ private void refresh () {
 	DeleteFolders = __DeleteFolders_JTextArea.getText().trim().replace("\n"," ");
 	DeleteFoldersScope = __DeleteFoldersScope_JComboBox.getSelected();
 	DeleteFoldersMinDepth = __DeleteFoldersMinDepth_JTextField.getText().trim();
+	*/
 	// Download.
 	DownloadFolders = __DownloadFolders_JTextArea.getText().trim().replace("\n"," ");
 	DownloadFiles = __DownloadFiles_JTextArea.getText().trim().replace("\n"," ");
+	/*
 	// List buckets.
 	ListBucketsRegEx = __ListBucketsRegEx_JTextField.getText().trim();
 	ListBucketsCountProperty = __ListBucketsCountProperty_JTextField.getText().trim();
 	*/
-	// List bucket objects.
-	ListObjectsScope = __ListObjectsScope_JComboBox.getSelected();
-	Prefix = __Prefix_JTextField.getText().trim();
+	// List files and folders.
+	ListScope = __ListScope_JComboBox.getSelected();
+	ListFolderPath = __ListFolderPath_JTextField.getText().trim();
 	ListRegEx = __ListRegEx_JTextField.getText().trim();
 	ListFiles = __ListFiles_JComboBox.getSelected();
 	ListFolders = __ListFolders_JComboBox.getSelected();
+	ListTrashed = __ListTrashed_JComboBox.getSelected();
 	MaxKeys = __MaxKeys_JTextField.getText().trim();
 	MaxObjects = __MaxObjects_JTextField.getText().trim();
 	ListCountProperty = __ListCountProperty_JTextField.getText().trim();
@@ -1689,11 +1726,12 @@ private void refresh () {
 	props.add ( "ListBucketsRegEx=" + ListBucketsRegEx );
 	props.add ( "ListBucketsCountProperty=" + ListBucketsCountProperty );
 	// List bucket objects.
-	props.add ( "ListObjectsScope=" + ListObjectsScope );
-	props.add ( "Prefix=" + Prefix );
+	props.add ( "ListScope=" + ListScope );
+	props.add ( "ListFolderPath=" + ListFolderPath );
 	props.add ( "ListRegEx=" + ListRegEx );
 	props.add ( "ListFiles=" + ListFiles );
 	props.add ( "ListFolders=" + ListFolders );
+	props.add ( "ListTrashed=" + ListTrashed );
 	props.add ( "MaxKeys=" + MaxKeys );
 	props.add ( "MaxObjects=" + MaxObjects );
 	props.add ( "ListCountProperty=" + ListCountProperty );
@@ -1747,26 +1785,28 @@ public void response ( boolean ok ) {
 }
 
 /**
- * Set the parameter tab based on the selected command.
+ * Set the parameter tab based on the Google Drive command to execute.
  */
 private void setTabForGoogleDriveCommand() {
 	String command = __GoogleDriveCommand_JComboBox.getSelected();
 	/*
-	if ( command.equalsIgnoreCase("" + AwsS3CommandType.COPY_OBJECTS) ) {
+	if ( command.equalsIgnoreCase("" + GoogleDriveCommandType.COPY_OBJECTS) ) {
 		__main_JTabbedPane.setSelectedIndex(0);
 	}
-	else if ( command.equalsIgnoreCase("" + AwsS3CommandType.DELETE_OBJECTS) ) {
+	if ( command.equalsIgnoreCase("" + GoogleDriveCommandType.DELETE_OBJECTS) ) {
 		__main_JTabbedPane.setSelectedIndex(1);
 	}
-	else if ( command.equalsIgnoreCase("" + AwsS3CommandType.DOWNLOAD_OBJECTS) ) {
-		__main_JTabbedPane.setSelectedIndex(2);
+	*/
+	if ( command.equalsIgnoreCase("" + GoogleDriveCommandType.DOWNLOAD) ) {
+		__main_JTabbedPane.setSelectedIndex(0);
 	}
-	else if ( command.equalsIgnoreCase("" + AwsS3CommandType.LIST_BUCKETS) ) {
+	/*
+	else if ( command.equalsIgnoreCase("" + GoogleDriveCommandType.LIST_BUCKETS) ) {
 		__main_JTabbedPane.setSelectedIndex(3);
 	}
 	*/
 	if ( command.equalsIgnoreCase("" + GoogleDriveCommandType.LIST) ) {
-		__main_JTabbedPane.setSelectedIndex(0);
+		__main_JTabbedPane.setSelectedIndex(1);
 	}
 	/*
 	else if ( command.equalsIgnoreCase("" + AwsS3CommandType.UPLOAD_OBJECTS) ) {
