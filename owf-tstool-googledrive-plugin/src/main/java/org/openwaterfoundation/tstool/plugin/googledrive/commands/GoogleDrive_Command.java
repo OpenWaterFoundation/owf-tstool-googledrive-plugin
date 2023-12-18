@@ -39,6 +39,7 @@ import org.openwaterfoundation.tstool.plugin.googledrive.GoogleDriveSession;
 
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.FileList;
+import com.google.api.services.drive.model.User;
 
 //import org.openwaterfoundation.tstool.plugin.aws.AwsSession;
 //import org.openwaterfoundation.tstool.plugin.aws.AwsToolkit;
@@ -75,7 +76,8 @@ import RTi.Util.Time.DateTime;
 import RTi.Util.Time.TimeUtil;
 
 /**
-This class initializes, checks, and runs the GoogleDrive() command.
+This class initializes, checks, and runs the GoogleDrive() command:
+- see the Google Drive API: https://developers.google.com/drive/api/reference/rest/v3
 */
 public class GoogleDrive_Command extends AbstractCommand
 implements CommandDiscoverable, FileGenerator, ObjectListProvider
@@ -89,7 +91,8 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	/**
 	Data members used for ListObjectsScope parameter values.
 	*/
-	protected final String _Root = "Root";
+	//protected final String _Root = "Root";
+	protected final String _File = "File";
 	protected final String _Folder = "Folder";
 	protected final String _All = "All";
 
@@ -150,21 +153,22 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	throws InvalidCommandParameterException {
 		String AuthenticationMethod = parameters.getValue ( "AuthenticationMethod" );
 		String GoogleDriveCommand = parameters.getValue ( "GoogleDriveCommand" );
-    	//String CopyFiles = parameters.getValue ( "CopyFiles" );
-    	//String DeleteFiles = parameters.getValue ( "DeleteFiles" );
-    	//String DeleteFolders = parameters.getValue ( "DeleteFolders" );
+    	String CopyFiles = parameters.getValue ( "CopyFiles" );
+    	String DeleteFiles = parameters.getValue ( "DeleteFiles" );
+    	String DeleteFolders = parameters.getValue ( "DeleteFolders" );
     	//String DeleteFoldersScope = parameters.getValue ( "DeleteFoldersScope" );
     	//String DeleteFoldersMinDepth = parameters.getValue ( "DeleteFoldersMinDepth" );
-    	//String DownloadFiles = parameters.getValue ( "DownloadFiles" );
-    	//String DownloadFolders = parameters.getValue ( "DownloadFolders" );
-    	//String ListObjectsScope = parameters.getValue ( "ListObjectsScope" );
-    	//String Prefix = parameters.getValue ( "Prefix" );
+    	String DownloadFiles = parameters.getValue ( "DownloadFiles" );
+    	String DownloadFolders = parameters.getValue ( "DownloadFolders" );
+    	String ListObjectsScope = parameters.getValue ( "ListScope" );
+    	String ListFolderPath = parameters.getValue ( "ListFolderPath" );
     	String ListFiles = parameters.getValue ( "ListFiles" );
     	String ListFolders = parameters.getValue ( "ListFolders" );
+    	String ListTrashed = parameters.getValue ( "ListTrashed" );
     	//String MaxKeys = parameters.getValue ( "MaxKeys" );
     	//String MaxObjects = parameters.getValue ( "MaxObjects" );
-    	//String UploadFiles = parameters.getValue ( "UploadFiles" );
-    	//String UploadFolders = parameters.getValue ( "UploadFolders" );
+    	String UploadFiles = parameters.getValue ( "UploadFiles" );
+    	String UploadFolders = parameters.getValue ( "UploadFolders" );
     	// Output
     	String OutputTableID = parameters.getValue ( "OutputTableID" );
     	String OutputFile = parameters.getValue ( "OutputFile" );
@@ -175,6 +179,18 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 
 		CommandStatus status = getCommandStatus();
 		status.clearLog(CommandPhaseType.INITIALIZATION);
+
+		if ( (AuthenticationMethod != null) && !AuthenticationMethod.isEmpty() ) {
+			GoogleDriveAuthenticationMethodType authenticationMethod =
+				GoogleDriveAuthenticationMethodType.valueOfIgnoreCase(AuthenticationMethod);
+			if ( authenticationMethod == null ) {
+				message = "The Google Drive authentication method (" + AuthenticationMethod + ") is invalid.";
+				warning += "\n" + message;
+				status.addToLog(CommandPhaseType.INITIALIZATION,
+					new CommandLogRecord(CommandStatusType.FAILURE,
+						message, "Specify a valid authentication method."));
+			}
+		}
 
 		// The existence of the file to append is not checked during initialization
 		// because files may be created dynamically at runtime.
@@ -189,7 +205,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		}
 		else {
 			googleDriveCommand = GoogleDriveCommandType.valueOfIgnoreCase(GoogleDriveCommand);
-			if ( GoogleDriveCommand == null ) {
+			if ( googleDriveCommand == null ) {
 				message = "The Google Drive command (" + GoogleDriveCommand + ") is invalid.";
 				warning += "\n" + message;
 				status.addToLog(CommandPhaseType.INITIALIZATION,
@@ -198,17 +214,16 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			}
 		}
 
-		/*
-		/ * OK to use / if the bucket uses / as the top.
-		if ( (Prefix != null) && !Prefix.isEmpty() && Prefix.equals("/") ) {
-			message = "The prefix cannot be /.";
+		// OK to use /.
+		if ( (ListFolderPath != null) && !ListFolderPath.isEmpty() && !ListFolderPath.endsWith("/") ) {
+			message = "The list folder path must end with /.";
 			warning += "\n" + message;
 			status.addToLog(CommandPhaseType.INITIALIZATION,
 				new CommandLogRecord(CommandStatusType.FAILURE,
-					message, "Specify the prefix as a path ending in / or leave blank to list all files."));
+					message, "Specify the list folder as a path ending in / or can leave blank if listing all files."));
 		}
-		* /
 
+		/*
 		if ( (DeleteFoldersScope != null) && !DeleteFoldersScope.equals("") ) {
 			if ( !DeleteFoldersScope.equalsIgnoreCase(_AllFilesAndFolders) && !DeleteFoldersScope.equalsIgnoreCase(_FolderFiles) ) {
 				message = "The DeleteFoldersScope parameter \"" + DeleteFoldersScope + "\" is invalid.";
@@ -245,6 +260,16 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 				status.addToLog(CommandPhaseType.INITIALIZATION,
 					new CommandLogRecord(CommandStatusType.FAILURE,
 						message, "Specify the parameter as " + _False + " or " + _True + " (default)."));
+			}
+		}
+
+		if ( (ListTrashed != null) && !ListTrashed.equals("") ) {
+			if ( !ListTrashed.equalsIgnoreCase(_False) && !ListTrashed.equalsIgnoreCase(_True) ) {
+				message = "The ListTrashed parameter \"" + ListTrashed + "\" is invalid.";
+				warning += "\n" + message;
+				status.addToLog(CommandPhaseType.INITIALIZATION,
+					new CommandLogRecord(CommandStatusType.FAILURE,
+						message, "Specify the parameter as " + _False + " (default) or " + _True + "."));
 			}
 		}
 
@@ -446,7 +471,8 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 						message, "Remove the UploadFolders parameter."));
 			}
 		}
-		else if ( s3Command == AwsS3CommandType.DOWNLOAD_OBJECTS ) {
+		*/
+		else if ( googleDriveCommand == GoogleDriveCommandType.DOWNLOAD ) {
 			// Make sure extra commands are not provided to avoid confusion with file and folder lists.
 			if ( (CopyFiles != null) && !CopyFiles.isEmpty() ) {
 				message = "The CopyFiles parameter is not used when downloading objects.";
@@ -483,6 +509,13 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 					new CommandLogRecord(CommandStatusType.WARNING,
 						message, "Remove the ListFolders parameter."));
 			}
+			if ( (ListTrashed != null) && !ListTrashed.isEmpty() ) {
+				message = "The ListTrashed parameter is not used when downloading objects.";
+				warning += "\n" + message;
+				status.addToLog(CommandPhaseType.INITIALIZATION,
+					new CommandLogRecord(CommandStatusType.WARNING,
+						message, "Remove the ListTrashed parameter."));
+			}
 			if ( (UploadFiles != null) && !UploadFiles.isEmpty() ) {
 				message = "The UploadFiles parameter is not used when downloading objects.";
 				warning += "\n" + message;
@@ -498,6 +531,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 						message, "Remove the UploadFolders parameter."));
 			}
 		}
+		/*
 		else if ( s3Command == AwsS3CommandType.LIST_OBJECTS ) {
 			// Make sure extra commands are not provided to avoid confusion with file and folder lists.
 			if ( (CopyFiles != null) && !CopyFiles.isEmpty() ) {
@@ -639,11 +673,12 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		validList.add ( "ListBucketsRegEx" );
 		validList.add ( "ListBucketsCountProperty" );
 		// List bucket objects.
-		validList.add ( "ListObjectsScope" );
-		validList.add ( "Prefix" );
+		validList.add ( "ListScope" );
+		validList.add ( "ListFolderPath" );
 		validList.add ( "ListRegEx" );
 		validList.add ( "ListFiles" );
 		validList.add ( "ListFolders" );
+		validList.add ( "ListTrashed" );
 		validList.add ( "MaxKeys" );
 		validList.add ( "MaxObjects" );
 		validList.add ( "ListCountProperty" );
@@ -1280,13 +1315,20 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	*/
 	
 	/**
-	 * Execute Google Drive "list".
+	 * Execute Google Drive "list":
+	 * - see https://developers.google.com/drive/api/reference/rest/v3/files/list
 	 */
 	private int doGoogleDriveList (
+		CommandProcessor processor,
 		GoogleDriveSession googleDriveSession,
-		boolean listFiles, boolean listFolders, String regex,
-		DataTable table, int listIdCol, int listTypeCol, int listNameCol, int listParentFolderCol,
-   		int listSizeCol, int listOwnerCol, int listLastModifiedCol,
+		String listScope, String listFolderPath, boolean listFiles, boolean listFolders, boolean listTrashed, String regex,
+		DataTable table, int listCreationTimeCol, int listIdCol, int listLastModifiedTimeCol, int listLastModifiedUserCol,
+		int listNameCol, int listOriginalFilenameCol, int listOwnedByMeCol, int listOwnerCol,
+		int listParentFolderCol, int listParentFolderIdCol,
+		int listSharedCol, int listSharedWithMeTimeCol, int listSharingUserCol,
+   		int listSizeCol,
+		int listTrashedCol, int listTrashedTimeCol, int listTrashedUserCol,
+   		int listTypeCol, int listWebViewLinkCol,
 		String listCountProperty,
 		CommandStatus status, int logLevel, int warningLevel, int warningCount, String commandTag
 		)
@@ -1297,7 +1339,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
    		// Folder to list:
    		// - convert the G: drive path to a folder ID
    		// - do not include "My Drive" in the path
-   		String folderPath = "TestFolder";
+   		String folderPath = listFolderPath;
    		String folderId = null;
    		try {
    			folderId = getFolderIdForPath ( googleDriveSession.getService(), folderPath );
@@ -1323,7 +1365,10 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
    		}
    		// List files in a folder:
    		// = 'folder' is the folder to list and 'in parents' means to list the files in that folder
-   		String q = "'" + folderId + "' in parents";
+   		// - default is to list trashed files and folders so always specify how handled
+   		// - trashed=true will list ONLY trashed files and folders, false will list only NOT trashed files and folders
+   		// - trashed objects are listed in the Google Drive recycling bin
+   		StringBuilder q = new StringBuilder("'" + folderId + "' in parents and trashed=" + listTrashed );
 
    		// Print the names and IDs for up to 10 files.
    		FileList result = null;
@@ -1342,11 +1387,19 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
    				.setSpaces("drive")
    				// Set the folder to list:
    				// See: https://developers.google.com/drive/api/guides/search-files
-   				.setQ(q)
+   				.setQ(q.toString())
    				// Page size for returned files.
        			.setPageSize(10)
-       			// Which fields to include in the response.
-       			.setFields("nextPageToken, files(id, name)")
+       			// Which fields to include in the response:
+       			// - if not specified nulls will be returned by the "get" methods below
+       			// - see https://developers.google.com/drive/api/guides/ref-search-terms#drive_properties
+       			// - don't specify any fields to return all fields (will be slower) but it is a pain to figure out fields
+       			//   since they don't seem to be documented well
+       			// - specifying * returns everything and may be slower
+       			// - when using files(), need to do a better job including only file fields in the parentheses
+       			//.setFields("nextPageToken, files(createdTime, description, id, mimeType, modifiedTime, name, ownedByMe, owners, parents, permissions, shared, sharingUser, size, trashed, trashedTime)")
+       			//.setFields("nextPageToken, createdTime, description, id, mimeType, modifiedTime, name, ownedByMe, owners, parents, permissions, shared, sharingUser, size, trashed, trashedTime")
+       			.setFields("*")
        			// Invoke the remote operation.
        			.execute();
    		}
@@ -1360,11 +1413,15 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		 			message, "See the log file for details."));
 		 	throw new CommandException ( message );
    		}
+		int fileCount = 0;
+		int folderCount = 0;
+		int objectCount = 0;
    		List<com.google.api.services.drive.model.File> files = result.getFiles();
    		if ( (files == null) || files.isEmpty() ) {
    			Message.printStatus(2, routine, "No files found.");
    		}
    		else {
+   			// Have files and folders to process.
    			// Do not allow duplicates in the output.
    			boolean allowDuplicates = false;
    			TableRecord rec = null;
@@ -1373,37 +1430,46 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
    				// Output to table:
    				// - key is the full path to the file
    				// - have size, owner and modification time properties
-   				/*
-				if ( doPrefix && prefix.endsWith("/") && key.equals(prefix) ) {
-					// Do not include the requested prefix itself because want the contents of the folder,
-					// not the folder itself.
-					Message.printStatus(2, routine, "Ignoring Prefix that is a folder because want folder contents.");
-					continue;
-				}
 				if ( regex != null ) {
-					// Want to apply a regular expression to the key.
-					if ( !key.matches(regex) ) {
+					// Want to apply a regular expression to the name.
+					if ( !file.getName().matches(regex) ) {
 						if ( Message.isDebugOn ) {
-							Message.printStatus(2, routine, "Does not match regular expression - skipping: " + key);
+							Message.printStatus(2, routine, "Does not match regular expression - skipping: " + file.getName());
 						}
 						continue;
 					}
 				}
-				if ( !listFolders && key.endsWith("/") ) {
-					// Is a folder and don't want folders so continue.
-					if ( Message.isDebugOn ) {
-						Message.printStatus(2, routine, "Is a folder and ignoring folder - skipping: " + key);
+				String type = null;
+				if ( file.getMimeType().equals("application/vnd.google-apps.folder") ) {
+					if ( !listFolders ) {
+						// Is a folder and don't want folders so continue.
+						if ( Message.isDebugOn ) {
+							Message.printStatus(2, routine, "Is a folder and ignoring folder - skipping: " + file.getName());
+						}
+						continue;
 					}
-					continue;
-				}
-				else if ( !listFiles && !key.endsWith("/") ) {
-					// Is a file and don't files want so continue.
-					if ( Message.isDebugOn ) {
-						Message.printStatus(2, routine, "Is a file and ignoring files - skipping: " + key);
+					else {
+						// Will include the folder in the listing below.
+						type = "folder";
+						++folderCount;
+						++objectCount;
 					}
-					continue;
 				}
-				*/
+				else if ( !file.getMimeType().equals("application/vnd.google-apps.folder") ) {
+					if ( !listFiles ) {
+						// Is a file and don't files want so continue.
+						if ( Message.isDebugOn ) {
+							Message.printStatus(2, routine, "Is a file and ignoring files - skipping: " + file.getName());
+						}
+						continue;
+					}
+					else {
+						// Will include the file in the listing below.
+						type = "file";
+						++fileCount;
+						++objectCount;
+					}
+				}
 				// If here, the object should be listed in the output table.
  				if ( table != null ) {
    					rec = null;
@@ -1415,44 +1481,117 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
    						// Create a new record.
    						rec = table.addRecord(table.emptyRecord());
    					}
-   					// Set the data in the record.
+   					// Set the data in the record:
+   					// - list in the order of the table
    					rec.setFieldValue(listIdCol,file.getId());
-  						rec.setFieldValue(listNameCol,file.getName());
-  						rec.setFieldValue(listParentFolderCol,"");
-  						/*
-   					if ( key.endsWith("/") ) {
-   						rec.setFieldValue(listTypeCol,"folder");
-   					}
-   					else {
-   						rec.setFieldValue(listTypeCol,"file");
-   					}
-   					*/
+					rec.setFieldValue(listNameCol,file.getName());
+					StringBuilder parentPath = new StringBuilder();
+					String parentId = "";
+					String parentIdPrev = ""; // Use to increase performance.
+					List<String> parents = file.getParents();
+					if ( (parents != null) && (parents.size() > 0) ) {
+						// Show the parent folder:
+						// - the primary parent is the first one and others are like symbolic links
+						// - the parents are the ID, not a nice name
+						parentId = parents.get(0);
+						if ( !parentId.equals(parentIdPrev) ) {
+							// Also convert the parent ID to a path:
+							// - only need to do this if the parent ID has changed
+							// - most of the time a single folder is being listed
+							Drive service = googleDriveSession.getService();
+							List<String> parentPaths = getParentFoldersFromFolderId(service, parentId);
+							for ( String part : parentPaths ) {
+								if ( parentPath.length() > 0 ) {
+									parentPath.append("/");
+								}
+								parentPath.append(part);
+							}
+						}
+						parentIdPrev = parentId;
+					}
+					rec.setFieldValue(listParentFolderCol,parentPath.toString());
+					rec.setFieldValue(listParentFolderIdCol,parentId);
+   					rec.setFieldValue(listTypeCol,type);
    					rec.setFieldValue(listSizeCol,file.getSize());
-   					/*
-   					if ( s3Object.owner() == null ) {
-   						rec.setFieldValue(listOwnerCol,"");
+   					List<User> users = file.getOwners();
+   					// Can have multiple owners.
+   					StringBuilder userCsv = new StringBuilder();
+   					if ( users != null ) {
+   						for ( User user : users ) {
+   							if ( userCsv.length() > 0 ) {
+   								userCsv.append(",");
+   							}
+   							userCsv.append(user.getDisplayName());
+   						}
    					}
-   					else {
-   						rec.setFieldValue(listOwnerCol,s3Object.owner().displayName());
+   					rec.setFieldValue(listOwnerCol, userCsv.toString());
+   					rec.setFieldValue(listOwnedByMeCol, file.getOwnedByMe());
+   					// Google API has its own DateTime in the API so convert to TSTool type for consistency.
+   					com.google.api.client.util.DateTime fileCreationTime = file.getCreatedTime();
+   					if ( fileCreationTime != null ) {
+   						DateTime creationTime = DateTime.parse(fileCreationTime.toString());
+   						rec.setFieldValue(listCreationTimeCol, creationTime);
    					}
-   					*/
-   					/*
-   					rec.setFieldValue(listLastModifiedCol,
-   						new DateTime(OffsetDateTime.ofInstant(s3Object.lastModified(), zoneId), dateTimeBehaviorFlag, timezone));
-   						*/
+   					rec.setFieldValue(listSharedCol, file.getShared());
+   					User sharingUser = file.getSharingUser();
+   					if ( sharingUser != null ) {
+   						rec.setFieldValue(listSharingUserCol, sharingUser.getDisplayName());
+   					}
+   					// Google API has its own DateTime in the API so convert to TSTool type for consistency.
+   					com.google.api.client.util.DateTime fileSharedWithMeTime = file.getSharedWithMeTime();
+   					if ( fileSharedWithMeTime != null ) {
+   						DateTime sharedWithMeTime = DateTime.parse(fileSharedWithMeTime.toString());
+   						rec.setFieldValue(listSharedWithMeTimeCol, sharedWithMeTime);
+   					}
+   					// Google API has its own DateTime in the API so convert to TSTool type for consistency.
+   					com.google.api.client.util.DateTime fileModifiedTime = file.getModifiedTime();
+   					if ( fileModifiedTime != null ) {
+   						DateTime modificationTime = DateTime.parse(fileModifiedTime.toString());
+   						rec.setFieldValue(listLastModifiedTimeCol, modificationTime);
+   					}
+   					User lastModifyingUser = file.getLastModifyingUser();
+   					if ( lastModifyingUser != null ) {
+   						rec.setFieldValue(listLastModifiedUserCol, file.getLastModifyingUser().getDisplayName());
+   					}
+   					rec.setFieldValue(listTrashedCol, file.getTrashed());
+   					User trashingUser = file.getTrashingUser();
+   					if ( trashingUser != null ) {
+   						rec.setFieldValue(listTrashedUserCol, trashingUser.getDisplayName());
+   					}
+   					// Google API has its own DateTime in the API so convert to TSTool type for consistency.
+   					com.google.api.client.util.DateTime fileTrashedTime = file.getTrashedTime();
+   					if ( fileTrashedTime != null ) {
+   						DateTime trashedTime = DateTime.parse(fileTrashedTime.toString());
+   						rec.setFieldValue(listTrashedTimeCol, trashedTime);
+   					}
+   					rec.setFieldValue(listOriginalFilenameCol, file.getOriginalFilename());
+   					rec.setFieldValue(listWebViewLinkCol, file.getWebViewLink());
    				}
-				// Increment the count of objects processed (includes files and folders).
- 				/*
-				++objectCount;
-				if ( key.endsWith("/") ) {
-					++folderCount;
-				}
-				else {
-					++fileCount;
-				}
-				*/
    			}
    		}
+
+    	Message.printStatus ( 2, routine, "List has fileCount=" + fileCount + ", folderCount="
+    		+ folderCount + ", objectCount=" + objectCount );
+    	// Set the property indicating the number of bucket objects.
+       	if ( (listCountProperty != null) && !listCountProperty.equals("") ) {
+       		//int numObjects = objectCount;
+       		int numObjects = table.getNumberOfRecords();
+           	PropList requestParams = new PropList ( "" );
+           	requestParams.setUsingObject ( "PropertyName", listCountProperty );
+           	requestParams.setUsingObject ( "PropertyValue", new Integer(numObjects) );
+           	try {
+               	processor.processRequest( "SetProperty", requestParams);
+           	}
+           	catch ( Exception e ) {
+               	message = "Error requesting SetProperty(" + listCountProperty + "=\"" + numObjects + "\") from processor.";
+               	Message.printWarning(logLevel,
+                   	MessageUtil.formatMessageTag( commandTag, ++warningCount),
+                   	routine, message );
+                    	status.addToLog ( CommandPhaseType.RUN,
+                   	new CommandLogRecord(CommandStatusType.FAILURE,
+                       	message, "Report the problem to software support." ) );
+           	}
+       	}
 
    		return warningCount;
 	}
@@ -1960,7 +2099,8 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	 * Get the Google Drive folder ID give an path.
 	 * This code was generated by ChatGPT.
 	 * @param driveService Drive service object
-	 * @param folderPath folder path using syntax "/path/to/folder" (no leading G: or G:/My Drive)
+	 * @param folderPath folder path using syntax "/path/to/folder/" (no leading G: or G:/My Drive).
+	 * The leading and trailing / are optional.
 	 * @return the Google Drive folder ID, or null if not matched
 	 * @throws IOException
 	 */
@@ -1974,6 +2114,15 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			}
 			else {
 				folderPath = folderPath.substring(1);
+			}
+		}
+		if ( folderPath.endsWith("/") ) {
+			// Remove the trailing slash because it will result in an empty path below.
+			if ( folderPath.length() == 1 ) {
+				return null;
+			}
+			else {
+				folderPath = folderPath.substring(0,folderPath.length());
 			}
 		}
         String[] folderNames = folderPath.split("/");
@@ -2132,6 +2281,63 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	}
 
 	/**
+	 * Get the parent folders given the parent folder Google Drive ID.
+	 * The initial code was generated by ChatGPT.
+	 * @param driveService Drive service instance
+	 * @param folderId the folder ID to process
+	 * @return the array of parent paths starting from the top-most folder (e.g., "My Drive")
+	 * @throws IOException
+	 */
+    private List<String> getParentFoldersFromFolderId ( Drive driveService, String folderId ) throws IOException {
+    	String routine = getClass().getSimpleName() + ".getParentFolders";
+        List<String> parentFolders = new ArrayList<>();
+        boolean debug = false;
+        if ( debug ) {
+        	Message.printStatus(2,routine,"Getting folders for ID=" + folderId);
+        }
+
+   		com.google.api.services.drive.model.File folder = driveService.files()
+   			.get(folderId)
+   			.setFields("*")
+   			.execute();
+        if ( debug ) {
+        	Message.printStatus(2,routine,"Google folder for ID=" + folder);
+        }
+        if ( folder != null ) {
+        	// Add the requesting folder.
+            parentFolders.add(folder.getName());
+            if ( debug ) {
+            	Message.printStatus(2,routine,"Google folder parents=" + folder.getParents());
+        	   	if ( folder.getParents() != null ) {
+        		   	Message.printStatus(2,routine,"Google folder parents size=" + folder.getParents().size());
+        	   	}
+            }
+        }
+
+        while ( (folder != null) && (folder.getParents() != null) ) {
+            String parentId = folder.getParents().get(0); // Get the primary parent.
+            if ( debug ) {
+            	Message.printStatus(2,routine,"Parent ID=" + parentId);
+            }
+            folder = driveService.files()
+            	.get(parentId)
+            	.setFields("*")
+            	.execute();
+            parentFolders.add(folder.getName());
+            if ( debug ) {
+            	Message.printStatus(2,routine,"Adding parent folder name=" + folder.getName());
+            }
+        }
+
+        // Reverse the order since moved up through parents.
+        List<String> parentFoldersSorted = new ArrayList<>();
+        for ( int i = parentFolders.size() - 1; i >= 0; i-- ) {
+        	parentFoldersSorted.add(parentFolders.get(i));
+        }
+        return parentFoldersSorted;
+    }
+    
+	/**
 	 * Determine whether a key has a folder depth at least the requested value.
 	 * For example:
 	 * <pre>
@@ -2237,15 +2443,21 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		String GoogleDriveCommand = parameters.getValue ( "GoogleDriveCommand" );
 		GoogleDriveCommandType googleDriveCommand = GoogleDriveCommandType.valueOfIgnoreCase(GoogleDriveCommand);
 		String AuthenticationMethod = parameters.getValue ( "AuthenticationMethod" );
-		GoogleDriveAuthenticationMethodType authenticationMethod = GoogleDriveAuthenticationMethodType.valueOfIgnoreCase(AuthenticationMethod);
-		if ( authenticationMethod == null ) {
-   			message = "Invalid authentication method.";
-			Message.printWarning ( warningLevel,
-				MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
-			status.addToLog(CommandPhaseType.RUN,
-				new CommandLogRecord(CommandStatusType.FAILURE,
-					message, "See the log file for details."));
-			throw new CommandException ( message );
+		GoogleDriveAuthenticationMethodType authenticationMethod = null;
+		if ( AuthenticationMethod == null ) {
+			authenticationMethod = GoogleDriveAuthenticationMethodType.SERVICE_ACCOUNT_KEY; // Default.
+		}
+		else {
+			authenticationMethod = GoogleDriveAuthenticationMethodType.valueOfIgnoreCase(AuthenticationMethod);
+			if ( authenticationMethod == null ) {
+				message = "Invalid authentication method.";
+				Message.printWarning ( warningLevel,
+					MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
+				status.addToLog(CommandPhaseType.RUN,
+					new CommandLogRecord(CommandStatusType.FAILURE,
+						message, "See the log file for details."));
+				throw new CommandException ( message );
+			}	
 		}
 		
 		// Execute the requested command.
@@ -2441,12 +2653,11 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		}
 		*/
 
-    	/*
 		// Download.
     	String DownloadFolders = parameters.getValue ( "DownloadFolders" );
 		DownloadFolders = TSCommandProcessorUtil.expandParameterValue(processor,this,DownloadFolders);
-		// Can't use a hashtable because sometimes download the same folders to multiple S3 locations.
-    	List<String> downloadFoldersKeys = new ArrayList<>();
+		// Can't use a hashtable because sometimes download the same folders to multiple locations.
+    	List<String> downloadFoldersPaths = new ArrayList<>();
     	List<String> downloadFoldersDirectories = new ArrayList<>();
        	String localFolder = null;
        	String remoteFolder = null;
@@ -2534,7 +2745,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			   			localFolderFull = IOUtil.verifyPathForOS(
 			      			IOUtil.toAbsolutePath(TSCommandProcessorUtil.getWorkingDir(processor),
 			        			TSCommandProcessorUtil.expandParameterValue(processor,this,localFolder)), true);
-            			downloadFoldersKeys.add(remoteFolder);
+            			downloadFoldersPaths.add(remoteFolder);
             			downloadFoldersDirectories.add(localFolderFull);
             			if ( Message.isDebugOn ) {
            					Message.printStatus(2, routine, "             Remote folder: " + remoteFolder );
@@ -2666,7 +2877,6 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
             	}
         	}
     	}
-    	*/
 
     	// List buckets.
 		String ListBucketsRegEx = parameters.getValue ( "ListBucketsRegEx" );
@@ -2690,7 +2900,17 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     		ListBucketsCountProperty = TSCommandProcessorUtil.expandParameterValue(processor, this, ListBucketsCountProperty);
     	}
 
-    	// List files.
+    	// List files and folders.
+
+   		String ListScope = parameters.getValue ( "ListScope" );
+    	ListScope = TSCommandProcessorUtil.expandParameterValue(processor, this, ListScope);
+    	if ( commandPhase == CommandPhaseType.RUN ) {
+    		ListScope = TSCommandProcessorUtil.expandParameterValue(processor, this, ListScope);
+    	}
+   		String ListFolderPath = parameters.getValue ( "ListFolderPath" );
+    	if ( commandPhase == CommandPhaseType.RUN ) {
+    		ListFolderPath = TSCommandProcessorUtil.expandParameterValue(processor, this, ListFolderPath);
+    	}
    		String ListFiles = parameters.getValue ( "ListFiles" );
 	  	boolean listFiles = true; // Default.
 	  	if ( (ListFiles != null) && ListFiles.equalsIgnoreCase("false") ) {
@@ -2701,6 +2921,11 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	  	if ( (ListFolders != null) && ListFolders.equalsIgnoreCase("false") ) {
 			listFolders = false;
 	  	}
+   		String ListTrashed = parameters.getValue ( "ListTrashed" );
+	  	boolean listTrashed = false; // Default.
+	  	if ( (ListTrashed != null) && ListTrashed.equalsIgnoreCase("true") ) {
+			listTrashed = true;
+	  	}
 	  	String ListCountProperty = parameters.getValue ( "ListCountProperty" );
 	  	if ( commandPhase == CommandPhaseType.RUN ) {
 	  		ListCountProperty = TSCommandProcessorUtil.expandParameterValue(processor, this, ListCountProperty);
@@ -2708,7 +2933,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 
     	String ListRegEx = parameters.getValue ( "ListRegEx" );
 	  	// TODO smalers 2023-01-27 evaluate whether regex can be expanded or will have conflicts.
-	  	//ListObjectsRegEx = TSCommandProcessorUtil.expandParameterValue(processor,this,ListObjectsRegEx);
+	  	//ListRegEx = TSCommandProcessorUtil.expandParameterValue(processor,this,ListRegEx);
 	  	// Convert the RegEx to Java style.
 	  	String listRegEx = null;
 	  	if ( (ListRegEx != null) && !ListRegEx.isEmpty() ) {
@@ -3080,14 +3305,27 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
         		int driveNameCol = -1;
         		int driveCreationDateCol = -1;
 
-        		// List columns.
+        		// List columns:
+        		// - list alphabetically
+        		int listCreationTimeCol = -1;
         		int listIdCol = -1;
+   	    		int listLastModifiedTimeCol = -1;
+   	    		int listLastModifiedUserCol = -1;
         		int listNameCol = -1;
-        		int listParentFolderCol = -1;
-        		int listTypeCol = -1;
-   	    		int listSizeCol = -1;
+   	    		int listOriginalFilenameCol = -1;
+   	    		int listOwnedByMeCol = -1;
    	    		int listOwnerCol = -1;
-   	    		int listLastModifiedCol = -1;
+        		int listParentFolderCol = -1;
+        		int listParentFolderIdCol = -1;
+   	    		int listSharedCol = -1;
+   	    		int listSharedWithMeTimeCol = -1;
+   	    		int listSharingUserCol = -1;
+   	    		int listSizeCol = -1;
+        		int listTrashedCol = -1;
+        		int listTrashedTimeCol = -1;
+        		int listTrashedUserCol = -1;
+        		int listTypeCol = -1;
+        		int listWebViewLinkCol = -1;
 
 	    		if ( doTable || doOutputFile) {
 	    			// Requested a table and/or file:
@@ -3102,13 +3340,26 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	        			columnList.add ( new TableField(TableField.DATA_TYPE_DATETIME, "CreationDate", -1) );
     	        		}
     	        		else if ( googleDriveCommand == GoogleDriveCommandType.LIST ) {
+    	        			// List in order that makes sense (not alphabetical).
     	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "Id", -1) );
     	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "Name", -1) );
     	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "ParentFolder", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "ParentFolderId", -1) );
     	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "Type", -1) );
     	        			columnList.add ( new TableField(TableField.DATA_TYPE_LONG, "Size", -1) );
     	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "Owner", -1) );
-    	        			columnList.add ( new TableField(TableField.DATA_TYPE_DATETIME, "LastModified", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_BOOLEAN, "OwnedByMe", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_DATETIME, "CreationTime", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_BOOLEAN, "Shared", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "SharingUser", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_DATETIME, "SharedWithMeTime", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_DATETIME, "LastModifiedTime", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "LastModifiedUser", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_BOOLEAN, "Trashed", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "TrashedUser", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_DATETIME, "TrashedTime", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "OriginalFilename", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "WebViewLink", -1) );
     	        		}
     	        		// 2. Create the table if not found from the processor above.
     	        		if ( (googleDriveCommand == GoogleDriveCommandType.LIST_DRIVES) ||
@@ -3122,13 +3373,26 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	        			driveCreationDateCol = table.getFieldIndex("CreationDate");
     	        		}
     	        		else if ( googleDriveCommand == GoogleDriveCommandType.LIST ) {
+    	        			// List in the same order as "add" calls above.
     	        			listIdCol = table.getFieldIndex("Id");
     	        			listNameCol = table.getFieldIndex("Name");
     	        			listParentFolderCol = table.getFieldIndex("ParentFolder");
+    	        			listParentFolderIdCol = table.getFieldIndex("ParentFolderId");
     	        			listTypeCol = table.getFieldIndex("Type");
     	        			listSizeCol = table.getFieldIndex("Size");
     	        			listOwnerCol = table.getFieldIndex("Owner");
-    	        			listLastModifiedCol = table.getFieldIndex("LastModified");
+    	        			listOwnedByMeCol = table.getFieldIndex("OwnedByMe");
+    	        			listCreationTimeCol = table.getFieldIndex("CreationTime");
+    	        			listSharedCol = table.getFieldIndex("Shared");
+    	        			listSharingUserCol = table.getFieldIndex("SharingUser");
+    	        			listSharedWithMeTimeCol = table.getFieldIndex("SharedWithMeTime");
+    	        			listLastModifiedTimeCol = table.getFieldIndex("LastModifiedTime");
+    	        			listLastModifiedUserCol = table.getFieldIndex("LastModifiedUser");
+    	        			listTrashedCol = table.getFieldIndex("Trashed");
+    	        			listTrashedUserCol = table.getFieldIndex("TrashedUser");
+    	        			listTrashedTimeCol = table.getFieldIndex("TrashedTime");
+    	        			listOriginalFilenameCol = table.getFieldIndex("OriginalFilename");
+    	        			listWebViewLinkCol = table.getFieldIndex("WebViewLink");
     	        		}
     	        		// 4. Set the table in the processor:
     	        		//    - if new will add
@@ -3157,7 +3421,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	        			else {
     	        				// Temporary table used for file only:
     	        				// - do not set in the processor
-    	        				table.setTableID ( "AwsS3" );
+    	        				table.setTableID ( "GoogleDrive" );
     	        			}
     	        		}
     	        		// 5. The table contents will be filled in when the doS3* methods are called.
@@ -3176,13 +3440,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	        			}
     	        		}
     	        		else if ( googleDriveCommand == GoogleDriveCommandType.LIST ) {
-    	        			listIdCol = table.getFieldIndex("Id");
-    	        			listNameCol = table.getFieldIndex("Name");
-    	        			listParentFolderCol = table.getFieldIndex("ParentFolder");
-    	        			listTypeCol = table.getFieldIndex("Type");
-    	        			listSizeCol = table.getFieldIndex("Size");
-    	        			listOwnerCol = table.getFieldIndex("Owner");
-    	        			listLastModifiedCol = table.getFieldIndex("LastModified");
+    	        			// List in the order that columns were added.
     	        			if ( listIdCol < 0 ) {
     	            			listIdCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "Id", -1), "");
     	        			}
@@ -3191,6 +3449,9 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	        			}
     	        			if ( listParentFolderCol < 0 ) {
     	            			listParentFolderCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "ParentFolder", -1), "");
+    	        			}
+    	        			if ( listParentFolderIdCol < 0 ) {
+    	            			listParentFolderIdCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "ParentFolderId", -1), "");
     	        			}
     	        			if ( listTypeCol < 0 ) {
     	            			listTypeCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "Type", -1), "");
@@ -3201,8 +3462,41 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	        			if ( listOwnerCol < 0 ) {
     	            			listOwnerCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "Owner", -1), "");
     	        			}
-    	        			if ( listLastModifiedCol < 0 ) {
-    	            			listLastModifiedCol = table.addField(new TableField(TableField.DATA_TYPE_DATETIME, "LastModified", -1), "");
+    	        			if ( listOwnedByMeCol < 0 ) {
+    	            			listOwnedByMeCol = table.addField(new TableField(TableField.DATA_TYPE_BOOLEAN, "OwnedByMe", -1), "");
+    	        			}
+    	        			if ( listCreationTimeCol < 0 ) {
+    	            			listCreationTimeCol = table.addField(new TableField(TableField.DATA_TYPE_DATETIME, "CreationTime", -1), "");
+    	        			}
+    	        			if ( listSharedCol < 0 ) {
+    	            			listSharedCol = table.addField(new TableField(TableField.DATA_TYPE_BOOLEAN, "Shared", -1), "");
+    	        			}
+    	        			if ( listSharingUserCol < 0 ) {
+    	            			listSharingUserCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "SharingUser", -1), "");
+    	        			}
+    	        			if ( listSharedWithMeTimeCol < 0 ) {
+    	            			listSharedWithMeTimeCol = table.addField(new TableField(TableField.DATA_TYPE_DATETIME, "SharedWithMeTime", -1), "");
+    	        			}
+    	        			if ( listLastModifiedTimeCol < 0 ) {
+    	            			listLastModifiedTimeCol = table.addField(new TableField(TableField.DATA_TYPE_DATETIME, "LastModifiedTime", -1), "");
+    	        			}
+    	        			if ( listLastModifiedUserCol < 0 ) {
+    	            			listLastModifiedUserCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "LastModifiedUser", -1), "");
+    	        			}
+    	        			if ( listTrashedCol < 0 ) {
+    	            			listTrashedCol = table.addField(new TableField(TableField.DATA_TYPE_BOOLEAN, "Trashed", -1), "");
+    	        			}
+    	        			if ( listTrashedUserCol < 0 ) {
+    	            			listTrashedUserCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "TrashedUser", -1), "");
+    	        			}
+    	        			if ( listTrashedTimeCol < 0 ) {
+    	            			listTrashedTimeCol = table.addField(new TableField(TableField.DATA_TYPE_DATETIME, "TrashedTime", -1), "");
+    	        			}
+    	        			if ( listOriginalFilenameCol < 0 ) {
+    	            			listOriginalFilenameCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "OriginalFilename", -1), "");
+    	        			}
+    	        			if ( listWebViewLinkCol < 0 ) {
+    	            			listWebViewLinkCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "WebViewLink", -1), "");
     	        			}
     	        		}
     	        	}
@@ -3248,11 +3542,18 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	    	}
     	    	*/
    	        	if ( googleDriveCommand == GoogleDriveCommandType.LIST ) {
-   	        		warningCount = doGoogleDriveList(
+   	        		warningCount = doGoogleDriveList (
+   	        			processor,
     			      	googleDriveSession,
-    			      	listFiles, listFolders, listRegEx,
-    			      	table, listIdCol, listTypeCol, listNameCol, listParentFolderCol,
-    			      	listSizeCol, listOwnerCol, listLastModifiedCol,
+    			      	ListScope, ListFolderPath, listFiles, listFolders, listTrashed, listRegEx,
+    			      	table,
+    			      	listCreationTimeCol, listIdCol, listLastModifiedTimeCol, listLastModifiedUserCol,
+    			      	listNameCol, listOriginalFilenameCol, listOwnedByMeCol, listOwnerCol,
+    			      	listParentFolderCol, listParentFolderIdCol,
+    			      	listSharedCol, listSharedWithMeTimeCol, listSharingUserCol,
+    			      	listSizeCol,
+    			      	listTrashedCol, listTrashedTimeCol, listTrashedUserCol,
+    			      	listTypeCol, listWebViewLinkCol,
     			      	ListCountProperty,
     			      	status, logLevel, warningLevel, warningCount, commandTag );
     	    	}
@@ -3442,17 +3743,18 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			//"DeleteFoldersScope",
 			//"DeleteFoldersMinDepth",
 			// Download.
-			//"DownloadFolders",
-			//"DownloadFiles",
+			"DownloadFolders",
+			"DownloadFiles",
 			// List buckets.
 			//"ListBucketsRegEx",
 			//"ListBucketsCountProperty",
 			// List files.
-			//"ListObjectsScope",
-			//"Prefix",
+			"ListScope",
+			"ListFolderPath",
 			"ListRegEx",
 			"ListFiles",
 			"ListFolders",
+			"ListTrashed",
 			//"MaxKeys",
 			//"MaxObjects",
 			"ListCountProperty",

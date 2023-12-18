@@ -41,9 +41,9 @@ public enum GoogleDriveCommandType {
 	//DELETE_OBJECTS ( "DeleteObjects", "Delete Google Drive objects" ),
 
 	/**
-	Download objects (files and/or directories).
+	Download files and/or folders.
 	*/
-	//DOWNLOAD_OBJECTS ( "DownloadObjects", "Download one or more Google Drive objects to files and/or folders" ),
+	DOWNLOAD ( "Download", "Download one or more Google Drive files and/or folders" ),
 
 	/**
 	List drives including My Drive and shared drives.
@@ -86,6 +86,7 @@ public enum GoogleDriveCommandType {
 	*/
 	public static List<GoogleDriveCommandType> getChoices() {
     	List<GoogleDriveCommandType> choices = new ArrayList<>();
+    	choices.add ( GoogleDriveCommandType.DOWNLOAD );
     	choices.add ( GoogleDriveCommandType.LIST );
     	return choices;
 	}
