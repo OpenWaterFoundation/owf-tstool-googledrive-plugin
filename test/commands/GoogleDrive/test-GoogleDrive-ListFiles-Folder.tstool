@@ -21,6 +21,6 @@ AwsS3(S3Command="UploadObjects",Region="us-west-2",Bucket="test.openwaterfoundat
 # SetDebugLevel(LogFileLevel=1)
 GoogleDrive(AuthenticationMethod="OAuth",GoogleDriveCommand="List",ListScope="Folder",ListFolderPath="${TestGoogleDriveFolder}/",ListTrashed="False",ListCountProperty="TestListCount",OutputTableID="TestList")
 # SetDebugLevel(ScreenLevel=0,LogFileLevel=0)
-If(Name="IfTestListCount",Condition="${TestListCount} != 4")
-Message(Message="Error - should be 4 (2 files, 2 folders) if the objects are correctly uploaded (have ${TestListCount}).",CommandStatus="FAILURE")
+If(Name="IfTestListCount",Condition="${TestListCount} != 5")
+Message(Message="Error - should be 5 (2 files, 3 folders) if the objects are correctly uploaded (have ${TestListCount}).",CommandStatus="FAILURE")
 EndIf(Name="IfTestListCount")

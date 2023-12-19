@@ -1,7 +1,7 @@
-# TSTool AWS Plugin / Introduction #
+# TSTool Google Drive Plugin / Introduction #
 
 *   [Introduction](#introduction)
-*   [TSTool use with Amazon Web Services](#tstool-use-with-amazon-web-services)
+*   [TSTool use with Google Drive](#tstool-use-with-google-drive)
 
 ----------
 
@@ -22,21 +22,32 @@ which also enhances the software based on project needs.
 
 *   See the latest [TSTool Documentation](https://opencdss.state.co.us/tstool/latest/doc-user/) to learn about core TSTool features.
 *   See the [TSTool Download website](https://opencdss.state.co.us/tstool/) for the most recent software versions and documentation.
-*   See the [AWS Plugin download page](https://software.openwaterfoundation.org/tstool-aws-plugin/).
+*   See the [TSTool Google Drive Plugin download page](https://software.openwaterfoundation.org/tstool-googledrive-plugin/).
 
-## TSTool use with Amazon Web Services ##
+## TSTool use with Google Drive ##
 
-Amazon Web Services (AWS) is a platform that supports organizations by providing cloud resources for data management and processing.
+Google Drive for storing data files in the cloud.
 See the following resources:
 
-*   [Amazon Web Services](https://aws.amazon.com/)
+*   [Google Drive](https://www.google.com/drive/)
 
-If you are reading this documentation, you are already using AWS or have an interest in doing so.
-Discuss AWS with your organization's information technology group or contact OWF.
-If you are not using AWS but are using Google Cloud Platform, Microsoft Azure, or another cloud platform,
+If you are reading this documentation, you are already using Google Drive or have an interest in doing so.
+Discuss Google Drive with your organization's information technology group or contact OWF.
+If you are not using Google Drive but are using Google Cloud Platform (GCP),
+Amazon Web Services (AWS), Microsoft Azure, or another cloud platform,
 contact OWF to discuss TSTool integration with those platforms.
 
-TSTool can be used with Amazon Web Services (AWS) to automate publishing information products to AWS,
+Google Drive is not the same as Google Cloud Platform Storage.
+Google Drive is consumer grade storage whereas GCP is cloud infrastructure.
+Google Drive is a component of [Google Workspace](https://workspace.google.com/),
+which can be used to support an organization's business operations.
+Installing Google Drive software on a Windows computer will integrate Google Drive
+with File Explorer, for example using the `G:` drive to access Google Drive files.
+
+TSTool can be used with Google Drive to automate publishing information products to Google Drive,
 for example to share analysis results within an organization or the public.
-This plugin streamlines the use of AWS within a TSTool workflow (command file).
-Consequently, the TSTool software can do the work that previously was done manually using the AWS Console or command line tools.
+This plugin streamlines the use of Google Drive within a TSTool workflow (command file).
+Consequently, the TSTool software can do the work that previously was done manually using the Google Drive web page or other software.
+
+The TSTool Google Drive plugin can also be used on Linux,
+which does not support Google Drive desktop software.

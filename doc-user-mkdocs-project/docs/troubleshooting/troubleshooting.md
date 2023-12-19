@@ -33,4 +33,4 @@ software files from multiple versions.
 The Google Drive plugin uses the Google Drive Application Programming Interface (API).
 The API must be enabled to allow the plugin to work.
 
-See the [Appendix - Enable API](../appendix-enable-ap/enable-api.md) documentation.
+See the [Appendix - Enable API](../appendix-enable-api/enable-api.md) documentation.

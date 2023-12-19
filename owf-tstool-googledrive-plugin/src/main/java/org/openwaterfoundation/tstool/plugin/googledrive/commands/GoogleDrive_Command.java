@@ -23,11 +23,8 @@ NoticeEnd */
 package org.openwaterfoundation.tstool.plugin.googledrive.commands;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.nio.file.Paths;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,6 +33,7 @@ import javax.swing.JFrame;
 
 import org.openwaterfoundation.tstool.plugin.googledrive.GoogleDriveAuthenticationMethodType;
 import org.openwaterfoundation.tstool.plugin.googledrive.GoogleDriveSession;
+import org.openwaterfoundation.tstool.plugin.googledrive.GoogleDriveToolkit;
 
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.FileList;
@@ -73,7 +71,6 @@ import RTi.Util.Table.TableField;
 import RTi.Util.Table.TableRecord;
 
 import RTi.Util.Time.DateTime;
-import RTi.Util.Time.TimeUtil;
 
 /**
 This class initializes, checks, and runs the GoogleDrive() command:
@@ -531,59 +528,59 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 						message, "Remove the UploadFolders parameter."));
 			}
 		}
-		/*
-		else if ( s3Command == AwsS3CommandType.LIST_OBJECTS ) {
+		else if ( googleDriveCommand == GoogleDriveCommandType.LIST ) {
 			// Make sure extra commands are not provided to avoid confusion with file and folder lists.
 			if ( (CopyFiles != null) && !CopyFiles.isEmpty() ) {
-				message = "The CopyFiles parameter is not used when listing objects.";
+				message = "The CopyFiles parameter is not used when listing files.";
 				warning += "\n" + message;
 				status.addToLog(CommandPhaseType.INITIALIZATION,
 					new CommandLogRecord(CommandStatusType.FAILURE,
 						message, "Remove the CopyFiles parameter."));
 			}
 			if ( (DeleteFiles != null) && !DeleteFiles.isEmpty() ) {
-				message = "The DeleteFiles parameter is not used when listing objects.";
+				message = "The DeleteFiles parameter is not used when listing files.";
 				warning += "\n" + message;
 				status.addToLog(CommandPhaseType.INITIALIZATION,
 					new CommandLogRecord(CommandStatusType.WARNING,
 						message, "Remove the DeleteFiles parameter."));
 			}
 			if ( (DeleteFolders != null) && !DeleteFolders.isEmpty() ) {
-				message = "The DeleteFolders parameter is not used when listing objects.";
+				message = "The DeleteFolders parameter is not used when listing files.";
 				warning += "\n" + message;
 				status.addToLog(CommandPhaseType.INITIALIZATION,
 					new CommandLogRecord(CommandStatusType.WARNING,
 						message, "Remove the DeleteFolders parameter."));
 			}
 			if ( (DownloadFiles != null) && !DownloadFiles.isEmpty() ) {
-				message = "The DownloadFiles parameter is not used when listing objects.";
+				message = "The DownloadFiles parameter is not used when listing files.";
 				warning += "\n" + message;
 				status.addToLog(CommandPhaseType.INITIALIZATION,
 					new CommandLogRecord(CommandStatusType.WARNING,
 						message, "Remove the DownloadFiles parameter."));
 			}
 			if ( (DownloadFolders != null) && !DownloadFolders.isEmpty() ) {
-				message = "The DownloadFolders parameter is not used when listing objects.";
+				message = "The DownloadFolders parameter is not used when listing files.";
 				warning += "\n" + message;
 				status.addToLog(CommandPhaseType.INITIALIZATION,
 					new CommandLogRecord(CommandStatusType.WARNING,
 						message, "Remove the DownloadFolders parameter."));
 			}
 			if ( (UploadFiles != null) && !UploadFiles.isEmpty() ) {
-				message = "The UploadFiles parameter is not used when listing objects.";
+				message = "The UploadFiles parameter is not used when listing files.";
 				warning += "\n" + message;
 				status.addToLog(CommandPhaseType.INITIALIZATION,
 					new CommandLogRecord(CommandStatusType.WARNING,
 						message, "Remove the UploadFiles parameter."));
 			}
 			if ( (UploadFolders != null) && !UploadFolders.isEmpty() ) {
-				message = "The UploadFolders parameter is not used when listing objects.";
+				message = "The UploadFolders parameter is not used when listing files.";
 				warning += "\n" + message;
 				status.addToLog(CommandPhaseType.INITIALIZATION,
 					new CommandLogRecord(CommandStatusType.WARNING,
 						message, "Remove the UploadFolders parameter."));
 			}
 		}
+		/*
 		else if ( s3Command == AwsS3CommandType.UPLOAD_OBJECTS ) {
 			// Make sure extra commands are not provided to avoid confusion with file and folder lists.
 			if ( (CopyFiles != null) && !CopyFiles.isEmpty() ) {
@@ -636,11 +633,12 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 						message, "Remove the ListFolders parameter."));
 			}
 		}
+		*/
 
 		// The output table or file is needed for lists:
 		// - some internal logic such as counts uses the table
-		if ( (s3Command == AwsS3CommandType.LIST_BUCKETS) ||
-			(s3Command == AwsS3CommandType.LIST_OBJECTS) ) {
+		if ( //(googleDriveCommand == GoogleDriveCommandType.LIST_BUCKETS) ||
+			(googleDriveCommand == GoogleDriveCommandType.LIST) ) {
 			// Must specify table and/or file.
 			if ( ((OutputTableID == null) || OutputTableID.isEmpty()) && ((OutputFile == null) || OutputFile.isEmpty()) ) {
 				message = "The output table and/or file must be specified.";
@@ -650,7 +648,6 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 						message, "Specify the output table ID and or file name."));
 			}
 		}
-		*/
 
 		// Check for invalid parameters.
 		List<String> validList = new ArrayList<>(37);
@@ -702,368 +699,19 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	}
 
 	/**
- 	* Run the CopyObject command.
- 	* @param s3 the S3 client to use for S3 requests
- 	* @param sourceBucket source bucket for the key
- 	* @param copySourceKeyList list of source object keys to copy
- 	* @param destBucket destination bucket for the key
- 	* @param copyDestKeyList list of destination object key keys for copy (must align with copySourceKeyList)
- 	* @param copyObjectCountProperty the processor property name to set the copy count
- 	* @param invalidateCloudFront whether to automatically invalidate CloudFront
- 	* @param cloudFrontPaths list of CloudFront paths to invalidate, should invalidation be requested
- 	* @exception Exception let the exceptions
- 	*/
-	/*
-	private int doS3CopyObjects (
-		CommandProcessor processor,
-		S3Client s3,
-		String sourceBucket, List<String> copySourceKeyList, String destBucket, List<String> copyDestKeyList,
-		String copyObjectCountProperty,
-		boolean invalidateCloudFront, List<String> cloudFrontPaths,
-		CommandStatus status, int logLevel, int warningCount, String commandTag )
-		throws Exception {
-		String routine = getClass().getSimpleName() + ".doS3CopyObject";
-		String message;
-
-		if ( (destBucket == null)  || destBucket.isEmpty() ) {
-			destBucket = sourceBucket;
-		}
-    	// CopyObjectRequest:
-    	//    https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/s3/model/CopyObjectRequest.html
-    	// CopyObjectRequestBuilder:
-    	//    https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/s3/model/CopyObjectRequest.Builder.html
-    	// CopyObjectResponse:
-    	//    https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/s3/model/CopyObjectResponse.html
-		int copyCount = 0;
-		for ( int i = 0; i < copySourceKeyList.size(); i++ ) {
-			String sourceKey = copySourceKeyList.get(i);
-			String destKey = copyDestKeyList.get(i);
-			if ( Message.isDebugOn ) {
-				Message.printStatus(2, routine, "Attempting copy of \"" + sourceKey + "\" to \"" + destKey + "\".");
-			}
-			CopyObjectRequest request = CopyObjectRequest
-				.builder()
-				.sourceBucket(sourceBucket)
-				.sourceKey(sourceKey)
-				.destinationBucket(destBucket)
-				.destinationKey(destKey)
-				.build();
-			// Error exception is caught in the main catch below.
-			CopyObjectResponse response = s3.copyObject(request);
-			if ( response.sdkHttpResponse().statusCode() == HttpURLConnection.HTTP_OK ) {
-				// Successful.
-				++copyCount;
-				addCloudFrontPath(cloudFrontPaths, destKey);
-			}
-			else {
-				message = "Copy object returned HTTP status " + response.sdkHttpResponse().statusCode() + " - object copy failed.";
-				Message.printWarning(logLevel,
-					MessageUtil.formatMessageTag( commandTag, ++warningCount),
-					routine, message );
-				status.addToLog ( CommandPhaseType.RUN,
-					new CommandLogRecord(CommandStatusType.FAILURE,
-						message, "Check that the original object exists." ) );
-			}
-       	}
-
-		// Set the property indicating the number of object copied.
-		if ( (copyObjectCountProperty != null) && !copyObjectCountProperty.equals("") ) {
-			PropList requestParams = new PropList ( "" );
-			requestParams.setUsingObject ( "PropertyName", copyObjectCountProperty );
-			requestParams.setUsingObject ( "PropertyValue", new Integer(copyCount) );
-			try {
-				processor.processRequest( "SetProperty", requestParams);
-			}
-			catch ( Exception e ) {
-				message = "Error requesting SetProperty(Property=\"" + copyObjectCountProperty + "\") from processor.";
-				Message.printWarning(logLevel,
-					MessageUtil.formatMessageTag( commandTag, ++warningCount),
-					routine, message );
-				status.addToLog ( CommandPhaseType.RUN,
-					new CommandLogRecord(CommandStatusType.FAILURE,
-						message, "Report the problem to software support." ) );
-			}
-		}
-
-      	// Return the updated warning count.
-      	return warningCount;
-	}
-	*/
-
-	/**
-	 * Delete S3 objects given a list of keys and/or folders.
-	 * Folders require listing objects because the API does not include a delete folders.
-	 * @param s3 S3Client instance to use for requests
-	 * @param bucket bucket containing objects
-	 * @param deleteFilesKeys list of keys to delete
-	 * @param deleteFoldersKeys list of folders (keys ending in /) to delete
-	 * @param deleteFoldersScope scope for deleting folders, controls whether shallow or deep delete
-	 * @param deleteFoldersMinDepth minimum number of folders in keys to allow delete,
-	 * used to protect against accidental deletes
- 	 * @param invalidateCloudFront whether to automatically invalidate CloudFront
-     * @param cloudFrontPaths list of CloudFront paths to invalidate, should invalidation be requested,
-     * will contain the parent of deleted files and folders
-	 * @param status command status for command logging messages
-	 * @param logLevel log level for messages
-	 * @param warningLevel warning level for messages
-	 * @param warningCount warning count
-	 * @param commandTag command tag for warning messages
-	*/
-	/*
-	private int doS3DeleteObjects (
-		S3Client s3,
-		String bucket,
-		List<String> deleteFilesKeys, List<String> deleteFoldersKeys,
-		String deleteFoldersScope, int deleteFoldersMinDepth,
-		boolean invalidateCloudFront, List<String> cloudFrontPaths,
-		CommandStatus status, int logLevel, int warningLevel, int warningCount, String commandTag
-		) throws Exception {
-		String routine = getClass().getSimpleName() + ".doS3DeleteObjects";
-		String message;
-
-		boolean debug = false;
-		if ( Message.isDebugOn ) {
-			debug = true;
-		}
-
-    	// DeleteObjectsRequest:
-    	//    https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/s3/model/DeleteObjectsRequest.html
-    	// DeleteObjectsRequestBuilder:
-    	//    https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/s3/model/DeleteObjectsRequest.Builder.html
-		//
-    	// See:
-		//    https://stackoverflow.com/questions/53950202/deleteobjects-using-aws-sdk-v2
-		//
-    	// Always do a DeleteObjectsRequest so that multiple objects can be deleted.
-
-		// TODO smalers 2023-02-02 the following only deletes one object.
-		/ *
-    	DeleteObjectRequest request = DeleteObjectRequest
-    		.builder()
-    		.bucket(bucket)
-    		.key(DeleteKey)
-    		.build();
-  	    	s3.deleteObject(request);
-  	   * /
-
-		// Create a list of identifiers:
-		// - reuse the ObjectIdentifier.Builder
-		List<ObjectIdentifier> objectIds = new ArrayList<>();
-		ObjectIdentifier.Builder objectIdBuilder = ObjectIdentifier.builder();
-		// List of object ID strings being deleted, to check for duplicates:
-		// - trying to delete the same key more than once may cause a concurrency issue in S3?
-		List<String> objectIdStrings = new ArrayList<>();
-		for ( String deleteFilesKey : deleteFilesKeys ) {
-			if ( keyFolderDepthIsAtLeast(deleteFilesKey, deleteFoldersMinDepth) ) {
-				if ( !StringUtil.isInList(objectIdStrings, deleteFilesKey)) {
-					objectIdStrings.add(deleteFilesKey);
-					objectIds.add(
-						objectIdBuilder
-							.key(deleteFilesKey)
-							.build());
-					if ( debug ) {
-						if ( debug ) {
-							Message.printStatus(2, routine, "Attempting to delete file key: \"" + deleteFilesKey + "\"" );
-						}
-					}
-				}
-			}
-			else {
-				if ( debug ) {
-					Message.printStatus(2, routine, "Skipping file key \"" + deleteFilesKey +
-						"\" because key has folder depth (" + StringUtil.patternCount(deleteFilesKey, "/")
-						+ ") < than the minimum of " + deleteFoldersMinDepth );
-				}
-			}
-		}
-
-		boolean deleteFolderFiles = false;
-		boolean deleteAllFilesAndFolders = false;
-		if ( deleteFoldersScope.equalsIgnoreCase(this._FolderFiles) ) {
-			deleteFolderFiles = true;
-		}
-		else if ( deleteFoldersScope.equalsIgnoreCase(this._AllFilesAndFolders) ) {
-			deleteAllFilesAndFolders = true;
-		}
-
-		// For folders, have to list the keys and add to the above list:
-		// - the list depends on the DeleteFoldersScope
-		// - previous code will have checked to make sure that the folders end in /
-		int maxKeys = -1;
-		int maxObjects = -1;
-		for ( String deleteFoldersKey : deleteFoldersKeys ) {
-			if ( deleteFolderFiles ) {
-				// List the folder using the prefix of the folder AND the delimiter.
-				if ( debug ) {
-					Message.printStatus(2, routine, "File keys from folder will be limited to the folder." );
-				}
-				boolean useDelimiter = true; // To limit to the folder only.
-				String delimiter = "/";  // Need to indicate the delimiter.
-				String prefix = deleteFoldersKey;
-				boolean listFiles = true;
-				boolean listFolders = true;
-				String regex = null;
-				List<AwsS3Object> s3Objects = AwsToolkit.getInstance().getS3BucketObjects(
-					s3,
-					bucket, prefix, delimiter, useDelimiter,
-					maxKeys, maxObjects, listFiles, listFolders, regex);
-				for ( AwsS3Object s3Object : s3Objects ) {
-					if ( keyFolderDepthIsAtLeast(s3Object.getKey(), deleteFoldersMinDepth) ) {
-						if ( !StringUtil.isInList(objectIdStrings, s3Object.getKey())) {
-							objectIdStrings.add(s3Object.getKey());
-							objectIds.add(
-								objectIdBuilder
-									.key(s3Object.getKey())
-									.build());
-							if ( debug ) {
-								Message.printStatus(2, routine, "Attempting to delete file (from folder) key: \"" + s3Object.getKey() + "\"" );
-							}
-						}
-					}
-					else {
-						if ( debug ) {
-							if ( debug ) {
-								Message.printStatus(2, routine, "Skipping file (from folder) key \"" + s3Object.getKey() +
-									"\" because key has folder depth (" + StringUtil.patternCount(s3Object.getKey(), "/")
-									+ ") < than the minimum of " + deleteFoldersMinDepth );
-							}
-						}
-					}
-				}
-			}
-			else if ( deleteAllFilesAndFolders ) {
-				// List the folder using the prefix including the folder and NOT the delimiter.
-				if ( debug ) {
-					Message.printStatus(2, routine, "File keys from folder inludes all files and subfolder contents." );
-				}
-				boolean useDelimiter = false;
-				String delimiter = null;
-				String prefix = deleteFoldersKey;
-				boolean listFiles = true;
-				boolean listFolders = true;
-				String regex = null;
-				List<AwsS3Object> s3Objects = AwsToolkit.getInstance().getS3BucketObjects(
-					s3,
-					bucket, prefix, delimiter, useDelimiter,
-					maxKeys, maxObjects, listFiles, listFolders, regex);
-				for ( AwsS3Object s3Object : s3Objects ) {
-					if ( keyFolderDepthIsAtLeast(s3Object.getKey(), deleteFoldersMinDepth) ) {
-						if ( !StringUtil.isInList(objectIdStrings, s3Object.getKey())) {
-							objectIdStrings.add(s3Object.getKey());
-							objectIds.add(
-								objectIdBuilder
-									.key(s3Object.getKey())
-									.build());
-							if ( debug ) {
-								Message.printStatus(2, routine, "Attempting to delete file (from folder) key: \"" + s3Object.getKey() + "\"" );
-							}
-						}
-					}
-					else {
-						if ( debug ) {
-							Message.printStatus(2, routine, "Skipping file (from folder) key \"" + s3Object.getKey() +
-								"\" because key # of folders is less than minimum of " + deleteFoldersMinDepth );
-						}
-					}
-				}
-			}
-		}
-
-		if ( objectIds.size() > 0 ) {
-			// Delete the objects.
-    		DeleteObjectsRequest request = DeleteObjectsRequest
-    			.builder()
-    			.bucket(bucket)
-    			.delete(
-    				Delete.builder()
-    					.objects(objectIds)
-    					.build())
-    			.build();
-	
-  	   		DeleteObjectsResponse response = s3.deleteObjects(request);
-
-  	   		if ( response.deleted().size() != objectIds.size() ) {
-  	   			// Create a list of booleans to check which files were deleted.
-  	   			boolean [] isDeleted = new boolean[objectIds.size()];
-  	   			for ( int i = 0; i < isDeleted.length; i++ ) {
-  	   				isDeleted[i] = false;
-  	   			}
-  	   			// Go through the list of what was actually deleted.
-  	   			for ( DeletedObject deleted : response.deleted() ) {
-  	   				// Search for the deleted object in the original list.
-  	   				for ( int i = 0; i < objectIds.size(); i++ ) {
-  	   					ObjectIdentifier objectId = objectIds.get(i);
-  	   					if ( objectId.key().equals(deleted.key()) ) {
-  	   						isDeleted[i] = true;
-  	   						// If invalidating CloudFront, invalidate the parent folder.
-  	   						if ( invalidateCloudFront ) {
-  	   							addCloudFrontPath(cloudFrontPaths, getKeyParentFolder(deleted.key() + "*"));
-  	   						}
-  	   						break;
-  	   					}
-  	   				}
-  	   			}
-
-  	   			// Now have the list of undeleted keys.
-  	   			for ( int i = 0; i < isDeleted.length; i++ ) {
-  	   				if ( !isDeleted[i] ) {
-    					message = "Unable to delete key \"" + objectIds.get(i).key() + "\".";
-    					Message.printWarning ( warningLevel,
-    						MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
-    					status.addToLog(CommandPhaseType.RUN,
-    						new CommandLogRecord(CommandStatusType.FAILURE,
-    							message, "Check permissions."));
-  	   				}
-  	   			}
-  	   		}
-		}
-		else {
-			// Only show a warning if files were requested:
-			// - folders might have been empty
-			if ( deleteFilesKeys.size() > 0 ) {
-				message = "No file keys were valid to delete.";
-				Message.printWarning ( warningLevel,
-					MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
-				status.addToLog(CommandPhaseType.RUN,
-					new CommandLogRecord(CommandStatusType.FAILURE,
-						message, "Check the file list."));
-			}
-		}
-
-		// Return the updated warning count.
-		return warningCount;
-	}
-*/
-
-	/**
-	 * Download S3 files and folders.
+	 * Download Google Drive files and folders.
 	 */
-	/*
-	private int doS3DownloadObjects (
+	private int doGoogleDriveDownload (
 		CommandProcessor processor,
-		ProfileCredentialsProvider credentialsProvider,
-		String bucket, String region,
-		List<String> downloadFilesKeys, List<String> downloadFilesFiles,
-		List<String> downloadFoldersKeys, List<String> downloadFoldersFolders,
+		GoogleDriveSession googleDriveSession,
+		List<String> downloadFilesGoogleDrivePaths, List<String> downloadFilesFiles,
+		List<String> downloadFoldersGoogleDrivePaths, List<String> downloadFoldersFolders,
 		CommandStatus status, int logLevel, int warningLevel, int warningCount, String commandTag
 		) {
-		String routine = getClass().getSimpleName() + ".doS3DownloadObjects";
+		String routine = getClass().getSimpleName() + ".doGoogleDriveDownload";
 		String message;
 
-    	// The following is from the S3TransferManager javadoc.
-    	S3TransferManager tm = null;
-
-    	Region regionObject = Region.of(region);
-
-    	// Create a transfer manager if files or folders are going to be downloaded.
-    	if ( (downloadFilesFiles.size() > 0) || (downloadFoldersFolders.size() > 0) ) {
-    		tm = S3TransferManager
-    			.builder()
-    			.s3ClientConfiguration(b -> b.credentialsProvider(credentialsProvider)
-   				.region(regionObject))
-    			.build();
-    	}
-    	else {
+    	if ( (downloadFilesFiles.size() == 0) && (downloadFoldersFolders.size() == 0) ) {
     		// Nothing to process.
     		if ( Message.isDebugOn ) {
     			Message.printStatus(2, routine, "No files are folders are to be downloaded.  Skipped because of checks?" );
@@ -1073,6 +721,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 
     	// Process folders first so that files can be downloaded into folders below.
 
+    	/* TODO smalers 2023-12-18 enable folder download later.
       	if ( downloadFoldersFolders.size() > 0 ) {
     		// Process each folder in the list.
     		boolean error = false;
@@ -1141,6 +790,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     			}
     		}
     	}
+    	*/
 
       	// Download files individually.
       	
@@ -1149,12 +799,12 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     		// Process each file in the list.
     		boolean error = false;
     		int iFile = -1;
-    		for ( String downloadKey : downloadFilesKeys ) {
+    		for ( String downloadGoogleDrivePath : downloadFilesGoogleDrivePaths ) {
     			++iFile;
     			error = false;
     			String localFile = null;
     			try {
-    				downloadKey = downloadKey.trim();
+    				downloadGoogleDrivePath = downloadGoogleDrivePath.trim();
     				localFile = downloadFilesFiles.get(iFile).trim();
     				// Apparently the folder for the file must exist so create if necessary.
     				File file = new File(localFile);
@@ -1169,48 +819,50 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	    			}
     				
     				if ( !error ) {
-    					final String downloadKeyFinal = downloadKey;
-    					final String downloadLocalFileFinal = localFile;
-    					/ * TODO smalers 2023-02-07 does not compile.
-    					FileDownload download = tm.downloadFile(
-    						DownloadFileRequest
-    							.builder()
-    							.getObjectRequest(
-    								GetObjectRequest.builder()
-    									.bucket(bucket)
-    									.key(downloadKey)
-    									.build()
-    							)
-    							.destination(Paths.get(localFile))
-    							.build());
-    							* /
-    					// See:  https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/transfer-manager.html
-    	    			DownloadFileRequest downloadFileRequest =
-    	    				DownloadFileRequest.builder()
-    	    					.getObjectRequest(g -> g.bucket(bucket).key(downloadKeyFinal))
-    	    					.destination(Paths.get(downloadLocalFileFinal))
-    	    					.build();
-    	    			FileDownload download = tm .downloadFile(downloadFileRequest);
-    	    			CompletedFileDownload downloadResult = download.completionFuture().join();
-    	    			if ( downloadResult.response().sdkHttpResponse().statusCode() == HttpURLConnection.HTTP_OK ) {
-				 	    	// Successful.
-				 	    	++downloadCount;
-			 	    	}
-			 	    	else {
-				 			message = "Download object returned HTTP status "
-				 				+ downloadResult.response().sdkHttpResponse().statusCode()
-				 				+ " for key \"" + downloadKey + "\" - object download failed.";
-				 			Message.printWarning(logLevel,
-					  			MessageUtil.formatMessageTag( commandTag, ++warningCount),
-					   			routine, message );
-				 			status.addToLog ( CommandPhaseType.RUN,
-					   			new CommandLogRecord(CommandStatusType.FAILURE,
-					    			message, "Check that the original object exists." ) );
-			 	    	}
+    					// Convert the requested file path to a file ID:
+    					String downloadFilePath = downloadFilesGoogleDrivePaths.get(iFile);
+    					String downloadFileId = GoogleDriveToolkit.getInstance().getFileIdForPath(
+    						googleDriveSession.getService(), downloadFilePath);
+    					if ( downloadFileId == null ) {
+							message = "Error getting Google Drive ID for file path \"" + downloadFilePath + "\".";
+	 						Message.printWarning ( warningLevel,
+	 							MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
+	 						status.addToLog(CommandPhaseType.RUN,
+	 							new CommandLogRecord(CommandStatusType.FAILURE,
+	 								message, "See the log file for details."));
+	 						throw new CommandException ( message );
+    					}
+    					else {
+							message = "Downloading Google Drive ID \"" + downloadFileId +
+								"\" to local file path \"" + downloadFilePath + "\".";
+    						try {
+    							OutputStream outputStream = new FileOutputStream(localFile);
+   								googleDriveSession.getService()
+   									// Request to execute.
+   									.files()
+   									// Holds the parameters for the request.
+   									.get(downloadFileId)
+       								// Invoke the remote operation.
+       								.executeMediaAndDownloadTo(outputStream);
+
+   								// Successful if no exception.
+   								++downloadCount;
+   							}
+   							catch ( Exception e ) {
+   								message = "Error downloading Google Drive file \"" + downloadFilePath + "\".";
+		 						Message.printWarning ( warningLevel,
+		 							MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
+		 						Message.printWarning ( 3, routine, e );
+		 						status.addToLog(CommandPhaseType.RUN,
+		 							new CommandLogRecord(CommandStatusType.FAILURE,
+		 								message, "See the log file for details."));
+		 						throw new CommandException ( message );
+   							}
+    					}
     	    		}
     	    	}
     	    	catch ( Exception e ) {
-    	    		message = "Error downloading S3 file \"" + downloadKey + "\" to file \"" + localFile + "\" (" + e + ")";
+    	    		message = "Error downloading Google Drive file \"" + downloadGoogleDrivePath + "\" to file \"" + localFile + "\" (" + e + ")";
     	    		Message.printWarning ( warningLevel,
     	    			MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
     	    		Message.printWarning ( 3, routine, e );
@@ -1220,100 +872,11 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	    	}
     		}
       	}
-    	if ( tm != null ) {
-    		tm.close();
-    	}
 
     	// Return the updated warning count.
     	return warningCount;
 	}
-	*/
 
-	/**
-	 * List S3 buckets.
-	 */
-	/*
-	private int doS3ListBuckets (
-		CommandProcessor processor,
-		S3Client s3,
-		DataTable table,
-		int bucketNameCol, int bucketCreationDateCol,
-		String regEx, String listBucketsCountProperty,
-		CommandStatus status, int logLevel, int warningCount, String commandTag ) throws Exception {
-		String routine = getClass().getSimpleName() + ".doS3ListBuckets";
-		String message;
-
-    	ListBucketsRequest request = ListBucketsRequest
-    		.builder()
-    		.build();
-    	ListBucketsResponse response = s3.listBuckets(request);
-
-    	TableRecord rec = null;
-    	boolean allowDuplicates = false;
-
-    	boolean doRegEx = false;
-    	if ( (regEx != null) && !regEx.isEmpty() ) {
-    		// Check whether the bucket names match the regular expression.
-    		doRegEx = true;
-    	}
-
-		// Output to table.
-   		if ( table != null ) {
-   			for ( Bucket bucketObject : response.buckets() ) {
-   				String bucketName = bucketObject.name();
-   				if ( doRegEx ) {
-   					if ( !bucketName.matches(regEx) ) {
-   						continue;
-   					}
-   				}
-    			if ( !allowDuplicates ) {
-    				// Try to match the bucket name, which is the unique identifier.
-    				rec = table.getRecord ( bucketNameCol, bucketName );
-    			}
-    			if ( rec == null ) {
-    				// Create a new record.
-    				rec = table.addRecord(table.emptyRecord());
-    			}
-    			// Set the data in the record.
-    			rec.setFieldValue(bucketNameCol,bucketName);
-    			DateTime creationDate = null;
-    			try {
-    				creationDate = DateTime.parse(bucketObject.creationDate().toString());
-    			}
-    			catch ( Exception e ) {
-    				// Leave the creation date as null.
-    			}
-    			rec.setFieldValue(bucketCreationDateCol,creationDate);
-    		}
-    	}
-    	// Set the property indicating the number of buckets.
-        if ( (listBucketsCountProperty != null) && !listBucketsCountProperty.equals("") ) {
-          	int bucketCount = 0;
-          	if ( table != null ) {
-          		bucketCount = table.getNumberOfRecords();
-          	}
-           	PropList requestParams = new PropList ( "" );
-           	requestParams.setUsingObject ( "PropertyName", listBucketsCountProperty );
-           	requestParams.setUsingObject ( "PropertyValue", new Integer(bucketCount) );
-           	try {
-               	processor.processRequest( "SetProperty", requestParams);
-           	}
-           	catch ( Exception e ) {
-               	message = "Error requesting SetProperty(Property=\"" + listBucketsCountProperty + "\") from processor.";
-               	Message.printWarning(logLevel,
-                   	MessageUtil.formatMessageTag( commandTag, ++warningCount),
-                   	routine, message );
-               	status.addToLog ( CommandPhaseType.RUN,
-                   	new CommandLogRecord(CommandStatusType.FAILURE,
-                       	message, "Report the problem to software support." ) );
-           	}
-        }
-
-        // Return the updated warning count.
-        return warningCount;
-	}
-	*/
-	
 	/**
 	 * Execute Google Drive "list":
 	 * - see https://developers.google.com/drive/api/reference/rest/v3/files/list
@@ -1342,7 +905,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
    		String folderPath = listFolderPath;
    		String folderId = null;
    		try {
-   			folderId = getFolderIdForPath ( googleDriveSession.getService(), folderPath );
+   			folderId = GoogleDriveToolkit.getInstance().getFolderIdForPath ( googleDriveSession.getService(), folderPath );
    		}
    		catch ( Exception e ) {
    			message = "Error converting folder \"" + folderPath + " to Google Drive ID.";
@@ -1485,7 +1048,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
    					// - list in the order of the table
    					rec.setFieldValue(listIdCol,file.getId());
 					rec.setFieldValue(listNameCol,file.getName());
-					StringBuilder parentPath = new StringBuilder();
+					String parentPath = "";
 					String parentId = "";
 					String parentIdPrev = ""; // Use to increase performance.
 					List<String> parents = file.getParents();
@@ -1499,13 +1062,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 							// - only need to do this if the parent ID has changed
 							// - most of the time a single folder is being listed
 							Drive service = googleDriveSession.getService();
-							List<String> parentPaths = getParentFoldersFromFolderId(service, parentId);
-							for ( String part : parentPaths ) {
-								if ( parentPath.length() > 0 ) {
-									parentPath.append("/");
-								}
-								parentPath.append(part);
-							}
+							parentPath = GoogleDriveToolkit.getInstance().getParentFolderPathFromFolderId(service, parentId);
 						}
 						parentIdPrev = parentId;
 					}
@@ -1597,485 +1154,6 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	}
 
 	/**
-	 * List S3 bucket objects.
-	 */
-	/*
-	private int doS3ListObjects (
-		CommandProcessor processor,
-		S3Client s3,
-		String bucket,
-		String listScope, String prefix, String delimiter, int maxKeys, int maxObjects,
-		boolean listFiles, boolean listFolders, String regex,
-		DataTable table, int objectKeyCol, int objectTypeCol, int objectNameCol, int objectParentFolderCol,
-		String listObjectsCountProperty,
-		int objectSizeCol, int objectOwnerCol, int objectLastModifiedCol,
-		CommandStatus status, int logLevel, int warningCount, String commandTag
-		) throws Exception {
-		String routine = getClass().getSimpleName() + ".doS3ListObjects";
-		String message;
-
-   	    // List bucket objects for files and/or "common prefix" for folders.
-   	    ListObjectsV2Request.Builder builder = ListObjectsV2Request
-    		.builder()
-    		.fetchOwner(Boolean.TRUE) // Get the owner so it can be shown in output.
-    		.bucket(bucket); // Bucket is required.
-    	if ( maxKeys > 0 ) {
-    		// Set the maximum number of keys that will be returned per request.
-    		builder.maxKeys(maxKeys);
-    	}
-    	// Indicate whether prefix is being used, to speed up checks.
-    	boolean doPrefix = false;
-    	if ( listScope.equalsIgnoreCase(this._Root) ) {
-    		// Listing root files and/or folders:
-    		// - do not specify prefix
-    		// - do specify delimiter
-    		// - if the bucket uses / as the root, the folder listing can be used
-    		if ( (prefix != null) && prefix.isEmpty() ) {
-    			builder.prefix(prefix);
-    			doPrefix = true;
-    		}
-    		if ( (delimiter == null) || delimiter.isEmpty() ) {
-    			builder.delimiter("/");
-    		}
-    		else {
-    			// Set what the command provided.
-    			builder.delimiter(delimiter);
-    		}
-    		Message.printStatus ( 2, routine, "Requesting all objects in the bucket root." );
-      	}
-    	else if ( listScope.equalsIgnoreCase(this._Folder) ) {
-    		// Listing a specific folder:
-    		// - prefix will have been checked previously
-    		// - delimiter is required and will have been checked previously
-    		if ( (prefix != null) && !prefix.isEmpty() ) {
-    			builder.prefix(prefix);
-    			doPrefix = true;
-    		}
-    		// Also need to set the delimiter.
-    		if ( (delimiter == null) || delimiter.isEmpty() ) {
-    			builder.delimiter("/");
-    		}
-    		else {
-    			// Set what the command provided.
-    			builder.delimiter(delimiter);
-    		}
-    		Message.printStatus ( 2, routine, "Requesting all objects matching prefix \"" + prefix + "\"." );
-    	}
-    	else {
-    		// Listing everything in the bucket:
-    		// - can use the prefix to filter
-    		// - no delimiter is used
-    		// - ok to return a folder matching a prefix
-    		Message.printStatus ( 2, routine, "Requesting all objects in the bucket." );
-    		if ( (prefix != null) && !prefix.isEmpty() ) {
-    			builder.prefix(prefix);
-    		}
-    	}
-
-    	ListObjectsV2Request request = builder.build();
-    	ListObjectsV2Response response = null;
-    	TableRecord rec = null;
-    	boolean allowDuplicates = false;
-    	// TODO smalers 2022-05-31 for now use UTC time.
-    	String timezone = "Z";
-    	ZoneId zoneId = ZoneId.of("Z");
-    	int dateTimeBehaviorFlag = 0;
-    	boolean done = false;
-    	int objectCount = 0;
-    	int fileCount = 0;
-    	int folderCount = 0;
-    	while ( !done ) {
-    		response = s3.listObjectsV2(request);
-    		// Process files and folders separately, with the maximum count checked based on what is returned.
-    		if ( listFiles || listFolders ) {
-    			// S3Objects can contain files or folders (objects with key ending in /, typically with size=0).
-    			// Loop in any case to get the count.
-    			for ( S3Object s3Object : response.contents() ) {
-   					String key = s3Object.key();
-    				// Check the maximum object count, to protect against runaway processes.
-    				if ( objectCount >= maxObjects ) {
-			  			// Quit saving objects when the limit has been reached.
-						if ( Message.isDebugOn ) {
-							Message.printStatus(2, routine, "Reached maxObjects limit (" + maxObjects + ") - skipping: " + key);
-						}
-    					break;
-    				}
-    				// Output to table:
-    				// - key is the full path to the file
-    				// - have size, owner and modification time properties
-   					if ( doPrefix && prefix.endsWith("/") && key.equals(prefix) ) {
-   						// Do not include the requested prefix itself because want the contents of the folder,
-   						// not the folder itself.
-   						Message.printStatus(2, routine, "Ignoring Prefix that is a folder because want folder contents.");
-   						continue;
-   					}
-   					if ( regex != null ) {
-   						// Want to apply a regular expression to the key.
-   						if ( !key.matches(regex) ) {
-   							if ( Message.isDebugOn ) {
-   								Message.printStatus(2, routine, "Does not match regular expression - skipping: " + key);
-   							}
-   							continue;
-   						}
-   					}
-   					if ( !listFolders && key.endsWith("/") ) {
-   						// Is a folder and don't want folders so continue.
-   						if ( Message.isDebugOn ) {
-   							Message.printStatus(2, routine, "Is a folder and ignoring folder - skipping: " + key);
-   						}
-   						continue;
-   					}
-   					else if ( !listFiles && !key.endsWith("/") ) {
-   						// Is a file and don't files want so continue.
-   						if ( Message.isDebugOn ) {
-   							Message.printStatus(2, routine, "Is a file and ignoring files - skipping: " + key);
-   						}
-   						continue;
-   					}
-   					// If here, the object should be listed in the output table.
-    				if ( table != null ) {
-    					rec = null;
-    					if ( !allowDuplicates ) {
-    						// Try to match the object key, which is the unique identifier.
-    						rec = table.getRecord ( objectKeyCol, s3Object.key() );
-    					}
-    					if ( rec == null ) {
-    						// Create a new record.
-    						rec = table.addRecord(table.emptyRecord());
-    					}
-    					// Set the data in the record.
-    					rec.setFieldValue(objectKeyCol,s3Object.key());
-   						rec.setFieldValue(objectNameCol,getKeyName(s3Object.key()));
-   						rec.setFieldValue(objectParentFolderCol,getKeyParentFolder(s3Object.key()));
-    					if ( key.endsWith("/") ) {
-    						rec.setFieldValue(objectTypeCol,"folder");
-    					}
-    					else {
-    						rec.setFieldValue(objectTypeCol,"file");
-    					}
-    					rec.setFieldValue(objectSizeCol,s3Object.size());
-    					if ( s3Object.owner() == null ) {
-    						rec.setFieldValue(objectOwnerCol,"");
-    					}
-    					else {
-    						rec.setFieldValue(objectOwnerCol,s3Object.owner().displayName());
-    					}
-    					rec.setFieldValue(objectLastModifiedCol,
-    						new DateTime(OffsetDateTime.ofInstant(s3Object.lastModified(), zoneId), dateTimeBehaviorFlag, timezone));
-    				}
-   					// Increment the count of objects processed (includes files and folders).
-   					++objectCount;
-   					if ( key.endsWith("/") ) {
-   						++folderCount;
-   					}
-   					else {
-   						++fileCount;
-   					}
-    			}
-    		}
-    		if ( listFolders ) {
-    			// Common prefixes are only used with folders:
-    			// - the key will be from the root to the / (inclusive) after the prefix
-    			for ( CommonPrefix commonPrefix : response.commonPrefixes() ) {
-			  		// Check the maximum object count, to protect against runaway processes.
-			  		if ( objectCount >= maxObjects ) {
-			  			// Quit saving objects when the limit has been reached.
-						break;
-			  		}
-   					if ( doPrefix && prefix.endsWith("/") && commonPrefix.prefix().equals(prefix) ) {
-   						// Do not include the requested prefix itself because want the contents of the folder,
-   						// not the folder itself.
-   						Message.printStatus(2, routine, "Ignoring Prefix that is a folder because want folder contents.");
-   						continue;
-   					}
-   					if ( regex != null ) {
-   						// Want to apply a regular expression to the key.
-   						if ( !commonPrefix.prefix().matches(regex) ) {
-   							continue;
-   						}
-   					}
-    				// Output to table:
-			  		// - key is the path to the folder including trailing / to indicate a folder
-			  		// - only have the key since folders are virtual and have no properties
-    				if ( table != null ) {
-    					rec = null;
-    					if ( !allowDuplicates ) {
-    						// Try to match the object key, which is the unique identifier.
-    						rec = table.getRecord ( objectKeyCol, commonPrefix.prefix() );
-    					}
-    					if ( rec == null ) {
-    						// Create a new record.
-    						rec = table.addRecord(table.emptyRecord());
-    					}
-    					// Set the data in the record.
-    					rec.setFieldValue(objectKeyCol, commonPrefix.prefix());
-    					// Set the name as the end of the key with folder delimiter.
-   						rec.setFieldValue(objectNameCol,getKeyName(commonPrefix.prefix()));
-   						rec.setFieldValue(objectParentFolderCol,getKeyParentFolder(commonPrefix.prefix()));
-   						// No size so keep as null;
-   						// No owner so keep as null;
-   						// No modification date so keep as null;
-    					rec.setFieldValue(objectTypeCol,"folder");
-    				}
-   					// Increment the count of objects processed (includes files and folders).
-			  		++objectCount;
-   					++folderCount;
-		  		}
-    		}
-    		if ( response.nextContinuationToken() == null ) {
-    			done = true;
-    		}
-    		request = request.toBuilder()
-   				.continuationToken(response.nextContinuationToken())
-   				.build();
-    	}
-    	// Sort the table by key if both files and folders were queried:
-    	// - necessary because files come out of the objects and folders out of common prefixes
-    	if ( listFiles && listFolders ) {
-    		String [] sortColumns = { "Key" };
-    		int [] sortOrder = { 1 };
-    		table.sortTable( sortColumns, sortOrder);
-    	}
-    	Message.printStatus ( 2, routine, "Response has objects=" + response.contents().size()
-    		+ ", commonPrefixes=" + response.commonPrefixes().size() );
-    	Message.printStatus ( 2, routine, "List has fileCount=" + fileCount + ", folderCount="
-    		+ folderCount + ", objectCount=" + objectCount );
-    	// Set the property indicating the number of bucket objects.
-       	if ( (listObjectsCountProperty != null) && !listObjectsCountProperty.equals("") ) {
-       		//int numObjects = objectCount;
-       		int numObjects = table.getNumberOfRecords();
-           	PropList requestParams = new PropList ( "" );
-           	requestParams.setUsingObject ( "PropertyName", listObjectsCountProperty );
-           	requestParams.setUsingObject ( "PropertyValue", new Integer(numObjects) );
-           	try {
-               	processor.processRequest( "SetProperty", requestParams);
-           	}
-           	catch ( Exception e ) {
-               	message = "Error requesting SetProperty(Property=\"" + numObjects + "\") from processor.";
-               	Message.printWarning(logLevel,
-                   	MessageUtil.formatMessageTag( commandTag, ++warningCount),
-                   	routine, message );
-                    	status.addToLog ( CommandPhaseType.RUN,
-                   	new CommandLogRecord(CommandStatusType.FAILURE,
-                       	message, "Report the problem to software support." ) );
-           	}
-       	}
-
-       	// Return the updated warning count.
-       	return warningCount;
-	}
-	*/
-
-	/**
-	 * Do S3 upload files and folders.
- 	 * @param invalidateCloudFront whether to automatically invalidate CloudFront
-     * @param cloudFrontPaths list of CloudFront paths to invalidate, should invalidation be requested,
-     * will contain the parent of deleted files and folders
-	 */
-	/*
-	private int doS3UploadObjects (
-		CommandProcessor processor,
-		ProfileCredentialsProvider credentialsProvider,
-		String bucket, String region,
-		List<String> uploadFilesOrig, List<String> uploadFilesFileList, List<String> uploadFilesKeyList,
-		List<String> uploadFoldersOrig, List<String> uploadFoldersDirectoryList, List<String> uploadFoldersKeyList,
-		boolean invalidateCloudFront, List<String> cloudFrontPaths,
-		CommandStatus status, int logLevel, int warningLevel, int warningCount, String commandTag
-		) throws Exception {
-		String routine = getClass().getSimpleName() + ".doS3UploadObjects";
-		String message;
-
-    	Region regionObject = Region.of(region);
-
-    	// The following is from the S3TransferManager javadoc.
-    	S3TransferManager tm = null;
-    	if ( (uploadFilesFileList.size() > 0) || (uploadFoldersDirectoryList.size() > 0) ) {
-    		tm = S3TransferManager
-    			.builder()
-    			.s3ClientConfiguration(b -> b.credentialsProvider(credentialsProvider)
-   				.region(regionObject))
-    			.build();
-    	}
-
-    	Message.printStatus(2, routine, "Have " + uploadFilesFileList.size() + " files to upload.");
-    	if ( uploadFilesFileList.size() > 0 ) {
-    		// Process each file in the list:
-    		// - don't allow null or empty key or name
-    		boolean error = false;
-			int iFile = -1;
-    		for ( String localFile : uploadFilesFileList ) {
-    			++iFile;
-    			error = false;
-    			String uploadKey = null;
-    			try {
-    				localFile = localFile.trim();
-    				uploadKey = uploadFilesKeyList.get(iFile);
-    				if ( (localFile == null) || localFile.trim().isEmpty() ) {
-    					// Don't allow default destination because could cause problems clobbering S3 files.
-    					message = "No local file given - cannot upload file.";
-    					Message.printWarning ( warningLevel,
-    						MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
-    					status.addToLog(CommandPhaseType.RUN,
-    						new CommandLogRecord(CommandStatusType.FAILURE,
-    							message, "Fix the local file name."));
-    					error = true;
-    				}
-    				File localFileFile = new File(localFile);
-    				if ( !localFileFile.exists() ) {
-    					// Local file does not exist so cannot upload.
-    					message = "Local file does not exist: " + localFile + " (UploadFiles parameter = \"" + uploadFilesOrig.get(iFile) + "\").";
-    					Message.printWarning ( warningLevel,
-    						MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
-    					status.addToLog(CommandPhaseType.RUN,
-    						new CommandLogRecord(CommandStatusType.FAILURE,
-    							message, "Fix the local file name."));
-    					error = true;
-    				}
-    				if ( (uploadKey == null) || uploadKey.trim().isEmpty() ) {
-    					// Don't allow default because could cause problems clobbering S3 files.
-    					message = "No S3 key (object path) given - cannot upload file \"" + localFile + "\".";
-    					Message.printWarning ( warningLevel,
-    						MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
-    					status.addToLog(CommandPhaseType.RUN,
-    						new CommandLogRecord(CommandStatusType.FAILURE,
-    							message, "Fix the key name."));
-    					error = true;
-    				}
-    				if ( !error ) {
-    					final String localFileFinal = localFile.trim();
-    					uploadKey = uploadKey.trim();
-    					Message.printStatus(2, routine, "Uploading local file \"" + localFileFinal + "\" to S3 key \"" + uploadKey + "\".");
-    					final String uploadKeyFinal = uploadKey;
-    					FileUpload upload = tm
-   							.uploadFile(d -> d.putObjectRequest(g -> g.bucket(bucket).key(uploadKeyFinal))
-								.source(Paths.get(localFileFinal)));
-    					upload.completionFuture().join();
-
-  						// If invalidating CloudFront, invalidate the file:
-    					// - TODO smalers 2023-02-07 need to figure out how to invalidate only successful uploaded folders
-   						if ( invalidateCloudFront ) {
-   							addCloudFrontPath(cloudFrontPaths, uploadKey + "*");
-   						}
-    				}
-    			}
-    			catch ( Exception e ) {
-    				message = "Error uploading file \"" + localFile + "\" to S3 key \"" + uploadKey + "\" (" + e + ").";
-    				Message.printWarning ( warningLevel,
-    					MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
-    				Message.printWarning ( 3, routine, e );
-    				status.addToLog(CommandPhaseType.RUN,
-    					new CommandLogRecord(CommandStatusType.FAILURE,
-    						message, "See the log file for details."));
-    			}
-    		}
-    	}
-
-    	Message.printStatus(2, routine, "Have " + uploadFoldersDirectoryList.size() + " folders to upload.");
-    	if ( uploadFoldersDirectoryList.size() > 0 ) {
-    		// Process each folder in the list.
-    		boolean error = false;
-				int iDir = -1;
-    		for ( String localFolder : uploadFoldersDirectoryList ) {
-    			++iDir;
-    			error = false;
-    			String uploadKey = null;
-    			try {
-    				localFolder = localFolder.trim();
-    				if ( localFolder.endsWith("/") ) {
-    					localFolder = localFolder.substring(0, localFolder.length() - 1);
-    				}
-    				uploadKey = uploadFoldersKeyList.get(iDir).trim();
-    				if ( (localFolder == null) || localFolder.trim().isEmpty() ) {
-    					// Don't allow default because could cause problems clobbering S3 files.
-    					message = "No local folder given - cannot upload folder.";
-    					Message.printWarning ( warningLevel,
-    						MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
-    					status.addToLog(CommandPhaseType.RUN,
-    						new CommandLogRecord(CommandStatusType.FAILURE,
-    							message, "Fix the local folder name."));
-    					error = true;
-    				}
-    				File localFolderAsFile = new File(localFolder);
-    				if ( !localFolderAsFile.exists() ) {
-    					// Local folder does not exist so cannot upload.
-    					message = "Local folder does not exist: " + localFolder
-    						+ " (UploadFolders parameter = \"" + uploadFoldersOrig.get(iDir) + "\").";
-    					Message.printWarning ( warningLevel,
-    						MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
-    					status.addToLog(CommandPhaseType.RUN,
-    						new CommandLogRecord(CommandStatusType.FAILURE,
-    							message, "Fix the local folder name."));
-    					error = true;
-    				}
-    				if ( (uploadKey == null) || uploadKey.trim().isEmpty() ) {
-    					// Don't allow default because could cause problems clobbering S3 files.
-    					message = "No S3 key given - cannot upload folder \"" + localFolder + "\".";
-    					Message.printWarning ( warningLevel,
-    						MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
-    					status.addToLog(CommandPhaseType.RUN,
-    						new CommandLogRecord(CommandStatusType.FAILURE,
-    							message, "Fix the key name."));
-    					error = true;
-    				}
-    				if ( !error ) {
-    					Message.printStatus(2, routine, "Uploading local folder \"" + localFolder + "\" to S3 key \"" + uploadKey + "\".");
-    					DirectoryUpload upload = tm.uploadDirectory(UploadDirectoryRequest.builder()
-								.sourceDirectory(Paths.get(localFolder))
-								.bucket(bucket)
-								.prefix(uploadKey)
-								.build());
-    					// Wait for the transfer to complete.
-    					CompletedDirectoryUpload completed = upload.completionFuture().join();
-    					// Log failed uploads, up to 50 messages.
-    					int maxMessage = 50, count = 0;
-    					for ( FailedFileUpload fail : completed.failedTransfers() ) {
-    						++count;
-    						if ( count > maxMessage ) {
-    							// Limit messages.
-    							message = "Only listing " + maxMessage + " upload errors.";
-   								Message.printWarning ( warningLevel,
-   									MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
-   								status.addToLog(CommandPhaseType.RUN,
-   									new CommandLogRecord(CommandStatusType.FAILURE,
-   										message, "Check command parameters."));
-    							break;
-    						}
-   							message = "Error uploading folder \"" + localFolder + "\" to key \"" + uploadKey + "\"(" + fail + ").";
-   							Message.printWarning ( warningLevel,
-   								MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
-   							status.addToLog(CommandPhaseType.RUN,
-   								new CommandLogRecord(CommandStatusType.FAILURE,
-   									message, "Check command parameters."));
-    					}
-
-  						// If invalidating CloudFront, invalidate the folder:
-    					// - TODO smalers 2023-02-07 need to figure out how to invalidate only successful uploaded folders
-   						if ( invalidateCloudFront ) {
-   							addCloudFrontPath(cloudFrontPaths, uploadKey + "*");
-   						}
-    				}
-    			}
-    			catch ( Exception e ) {
-    				message = "Error uploading folder \"" + localFolder + "\" to S3 key \"" + uploadKey + "\" (" + e + ").";
-    				Message.printWarning ( warningLevel,
-    					MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
-    				Message.printWarning ( 3, routine, e );
-    				status.addToLog(CommandPhaseType.RUN,
-    					new CommandLogRecord(CommandStatusType.FAILURE,
-    						message, "See the log file for details."));
-    			}
-    		}
-    	}
-    	if ( tm != null ) {
-    		tm.close();
-    	}
-
-    	// Return the updated warning count.
-    	return warningCount;
-	}
-	*/
-
-	/**
 	Edit the command.
 	@param parent The parent JFrame to which the command dialog will belong.
 	@return true if the command was edited (e.g., "OK" was pressed), and false if not (e.g., "Cancel" was pressed).
@@ -2096,70 +1174,6 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	}
 	
 	/**
-	 * Get the Google Drive folder ID give an path.
-	 * This code was generated by ChatGPT.
-	 * @param driveService Drive service object
-	 * @param folderPath folder path using syntax "/path/to/folder/" (no leading G: or G:/My Drive).
-	 * The leading and trailing / are optional.
-	 * @return the Google Drive folder ID, or null if not matched
-	 * @throws IOException
-	 */
-	private String getFolderIdForPath ( Drive driveService, String folderPath ) throws IOException {
-		String routine = getClass().getSimpleName() + ".getFolderIdForPath";
-        // Split the path into folder names.
-		if ( folderPath.startsWith("/") ) {
-			// Remove the leading slash because it will result in an empty path below.
-			if ( folderPath.length() == 1 ) {
-				return null;
-			}
-			else {
-				folderPath = folderPath.substring(1);
-			}
-		}
-		if ( folderPath.endsWith("/") ) {
-			// Remove the trailing slash because it will result in an empty path below.
-			if ( folderPath.length() == 1 ) {
-				return null;
-			}
-			else {
-				folderPath = folderPath.substring(0,folderPath.length());
-			}
-		}
-        String[] folderNames = folderPath.split("/");
-
-        // Initialize the root folder ID.
-        String currentFolderId = "root";
-
-        // Iterate through each folder in the path.
-        for ( String folderName : folderNames ) {
-            // Search for the folder by name in the parent folder:
-        	// - first time through will list 'root', then sub-folders
-        	// - only match the folder name
-            String q = "name='" + folderName + "' and '" + currentFolderId + "' in parents";
-            Message.printStatus(2, routine, "Getting files using q=\"" + q + "\"");
-            FileList result = driveService.files().list()
-                .setQ(q)
-                .setFields("files(id)")
-                .execute();
-
-            // Check if the folder (path part) was found.
-            if ( (result.getFiles() != null) && !result.getFiles().isEmpty()) {
-                // Update the current folder ID for the next iteration.
-                currentFolderId = result.getFiles().get(0).getId();
-                Message.printStatus(2, routine, "Set currentFolderId=\"" + currentFolderId + "\"");
-            }
-            else {
-                // Folder not found, return null.
-                Message.printStatus(2, routine, "Folder not found. Returning null.");
-                return null;
-            }
-        }
-
-        // Return the final folder ID.
-        return currentFolderId;
-    }
-
-	/**
 	Return the list of files that were created by this command.
 	*/
 	public List<File> getGeneratedFileList () {
@@ -2168,94 +1182,6 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
         	list.add ( getOutputFile() );
     	}
     	return list;
-	}
-
-	/**
-	 * Return the name part of a key, which is the last part, without trailing /.
-	 * If the last part ends in /, return the substring after the previous delimiter.
-	 * If the last part does not end in /, return the part after the last /.
-	 * If there is no /, return the original key.
-	 * @param key S3 object key (or common prefix).
-	 * @return the trailing file or folder name, without trailing /
-	 */
-	private String getKeyName ( String key ) {
-		return getKeyName ( key, false );
-	}
-
-	/**
-	 * Return the name part of a key, which is the last part.
-	 * If the last part ends in /, return the substring after the previous delimiter to the /.
-	 * If the last part does not end in /, return the part after the last /.
-	 * If there is no /, return the original key.
-	 * @param key S3 object key (or common prefix).
-	 * @param keepTrailingDelimiter if true and a folder with trailing /, keep the /. If false, remove the slash.
-	 * @return the trailing file or folder name (with trailing /)
-	 */
-	private String getKeyName ( String key, boolean keepTrailingDelimiter ) {
-    	// Set the name as the end of the key without folder delimiter.
-		String name = key;
-    	if ( key.endsWith("/") ) {
-    		// Folder.
-    		int pos = key.lastIndexOf("/",2);
-    		if ( pos < 0 ) {
-    			// There was only the trailing /.
-    			name = key;
-    		}
-    		else {
-    			// Return the string after the found position.
-    			name = key.substring(pos + 1);
-    		}
-    	}
-    	else {
-    		// File.
-    		int pos = key.lastIndexOf("/");
-    		if ( pos >= 0 ) {
-    			// Have subfolders:
-    			// - strip so only the name remains
-    			name = name.substring(pos + 1);
-    		}
-    		else {
-    			// No folder so use the full name as is.
-    			name = key;
-   			}
-    	}
-    	if ( name.endsWith("/") && !keepTrailingDelimiter ) {
-    		// Remove the trailing slash.
-    		name = name.substring(0,(name.length() - 1));
-    	}
-    	return name;
-	}
-
-	/**
-	 * Return the parent folder part of the key, without trailing /.
-	 * @param key S3 object key (or common prefix).
-	 * @return the key parent folder, without trailing /.
-	 */
-	private String getKeyParentFolder ( String key ) {
-		return getKeyParentFolder ( key, false );
-	}
-
-	/**
-	 * Return the parent folder part of the key.
-	 * This is the folder, including / prior to the trailing file or folder name.
-	 * @param key S3 object key (or common prefix).
-	 * @param keepTrailingDelimiter if true and a folder with trailing /, keep the /. If false, remove the slash.
-	 * @return the key parent folder, with trailing /.
-	 */
-	private String getKeyParentFolder ( String key, boolean keepTrailingDelimiter ) {
-		String parentFolder = "";
-		// Get the key name, with trailing delimiter.
-		String name = getKeyName(key, true);
-		// The parent is everything before the name.
-		if ( key.length() > name.length() ) {
-			// Have a parent folder.
-			parentFolder = key.substring(0, (key.length() - name.length()) );
-		}
-    	if ( parentFolder.endsWith("/") && !keepTrailingDelimiter ) {
-    		// Remove the trailing slash.
-    		parentFolder = parentFolder.substring(0,(parentFolder.length() - 1));
-    	}
-		return parentFolder;
 	}
 
 	/**
@@ -2281,108 +1207,9 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	}
 
 	/**
-	 * Get the parent folders given the parent folder Google Drive ID.
-	 * The initial code was generated by ChatGPT.
-	 * @param driveService Drive service instance
-	 * @param folderId the folder ID to process
-	 * @return the array of parent paths starting from the top-most folder (e.g., "My Drive")
-	 * @throws IOException
-	 */
-    private List<String> getParentFoldersFromFolderId ( Drive driveService, String folderId ) throws IOException {
-    	String routine = getClass().getSimpleName() + ".getParentFolders";
-        List<String> parentFolders = new ArrayList<>();
-        boolean debug = false;
-        if ( debug ) {
-        	Message.printStatus(2,routine,"Getting folders for ID=" + folderId);
-        }
-
-   		com.google.api.services.drive.model.File folder = driveService.files()
-   			.get(folderId)
-   			.setFields("*")
-   			.execute();
-        if ( debug ) {
-        	Message.printStatus(2,routine,"Google folder for ID=" + folder);
-        }
-        if ( folder != null ) {
-        	// Add the requesting folder.
-            parentFolders.add(folder.getName());
-            if ( debug ) {
-            	Message.printStatus(2,routine,"Google folder parents=" + folder.getParents());
-        	   	if ( folder.getParents() != null ) {
-        		   	Message.printStatus(2,routine,"Google folder parents size=" + folder.getParents().size());
-        	   	}
-            }
-        }
-
-        while ( (folder != null) && (folder.getParents() != null) ) {
-            String parentId = folder.getParents().get(0); // Get the primary parent.
-            if ( debug ) {
-            	Message.printStatus(2,routine,"Parent ID=" + parentId);
-            }
-            folder = driveService.files()
-            	.get(parentId)
-            	.setFields("*")
-            	.execute();
-            parentFolders.add(folder.getName());
-            if ( debug ) {
-            	Message.printStatus(2,routine,"Adding parent folder name=" + folder.getName());
-            }
-        }
-
-        // Reverse the order since moved up through parents.
-        List<String> parentFoldersSorted = new ArrayList<>();
-        for ( int i = parentFolders.size() - 1; i >= 0; i-- ) {
-        	parentFoldersSorted.add(parentFolders.get(i));
-        }
-        return parentFoldersSorted;
-    }
-    
-	/**
-	 * Determine whether a key has a folder depth at least the requested value.
-	 * For example:
-	 * <pre>
-	 *    file.txt - folder depth 0
-	 *    /file.txt - folder depth 0
-	 *
-	 *    folder1/file.txt - folder depth 1
-	 *    /folder1/file.txt - folder depth 1
-	 *
-	 *    /folder1/folder2/file.txt - folder depth 2
-	 *    folder1/folder2/file.txt - folder depth 2
-	 *
-	 *    folder1/folder2/folder3/file.txt - folder depth 3
-	 *    /folder1/folder2/folder3/file.txt - folder depth 3
-	 * </pre>
-	 * @param key the key to evaluate
-	 * @param minDepth minimum required folder depth
-	 */
-	public boolean keyFolderDepthIsAtLeast ( String key, int minDepth ) {
-		//String routine = getClass().getSimpleName() + ".keyFolderDepthIsAtLeast";
-		if ( key == null ) {
-			return false;
-		}
-		// Folder delimiter character.
-		String delim = "/";
-		// Count the number of /.
-		int delimCount = StringUtil.patternCount(key, "/");
-		// If the key did not start with /, add one to the count as if it did.
-		if ( !key.startsWith(delim) ) {
-			++delimCount;
-		}
-		//Message.printStatus(2, routine, "Key \"" + key + "\" has delimCount=" + delimCount);
-		if ( delimCount >= minDepth ) {
-			return true;
-		}
-		else {
-			return false;
-		}
-	}
-
-	/**
 	Run the command.
 	@param command_number Command number in sequence.
-	@exception CommandWarningException Thrown if non-fatal warnings occur (the
-	command could produce some results).
+	@exception CommandWarningException Thrown if non-fatal warnings occur (the command could produce some results).
 	@exception CommandException Thrown if fatal warnings occur (the command could not produce output).
 	*/
 	public void runCommand ( int command_number )
@@ -2460,7 +1287,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			}	
 		}
 		
-		// Execute the requested command.
+		// Get command parameters for: Copy - CopyFiles
 
 		// Copy.
     	/*
@@ -2575,6 +1402,8 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	}
     	*/
 
+		// Get command parameters for: Bucket (or Google Drive) TBD
+
     	/*
 		// Bucket must be final because of lambda use below.
 		String copyBucket0 = parameters.getValue ( "CopyBucket" );
@@ -2586,7 +1415,8 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	*/
 
     	/*
-		// Delete.
+		// Get command parameters for: Delete - DeleteFiles
+
 		String DeleteFiles = parameters.getValue ( "DeleteFiles" );
 		DeleteFiles = TSCommandProcessorUtil.expandParameterValue(processor,this,DeleteFiles);
 		List<String> deleteFilesKeys = new ArrayList<>();
@@ -2611,6 +1441,8 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			}
 		}
 		*/
+
+		// Get command parameters for: Delete - DeleteFolders
 
     	/*
 		String DeleteFolders = parameters.getValue ( "DeleteFolders" );
@@ -2653,11 +1485,12 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		}
 		*/
 
-		// Download.
+		// Get command parameters for: Download - DownloadFolders
+
     	String DownloadFolders = parameters.getValue ( "DownloadFolders" );
 		DownloadFolders = TSCommandProcessorUtil.expandParameterValue(processor,this,DownloadFolders);
 		// Can't use a hashtable because sometimes download the same folders to multiple locations.
-    	List<String> downloadFoldersPaths = new ArrayList<>();
+    	List<String> downloadFoldersGoogleDrivePaths = new ArrayList<>();
     	List<String> downloadFoldersDirectories = new ArrayList<>();
        	String localFolder = null;
        	String remoteFolder = null;
@@ -2745,7 +1578,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			   			localFolderFull = IOUtil.verifyPathForOS(
 			      			IOUtil.toAbsolutePath(TSCommandProcessorUtil.getWorkingDir(processor),
 			        			TSCommandProcessorUtil.expandParameterValue(processor,this,localFolder)), true);
-            			downloadFoldersPaths.add(remoteFolder);
+            			downloadFoldersGoogleDrivePaths.add(remoteFolder);
             			downloadFoldersDirectories.add(localFolderFull);
             			if ( Message.isDebugOn ) {
            					Message.printStatus(2, routine, "             Remote folder: " + remoteFolder );
@@ -2763,10 +1596,13 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
            		}
         	}
     	}
+
+    	// Get command parameters for: Download - DownloadFiles
+    	
     	String DownloadFiles = parameters.getValue ( "DownloadFiles" );
 		DownloadFiles = TSCommandProcessorUtil.expandParameterValue(processor,this,DownloadFiles);
-		// Can't use a hashtable because sometimes download the same files to multiple S3 locations.
-    	List<String> downloadFilesKeys = new ArrayList<>();
+		// Can't use a hashtable because sometimes download the same files to multiple local locations.
+    	List<String> downloadFilesGoogleDrivePaths = new ArrayList<>();
     	List<String> downloadFilesFiles = new ArrayList<>();
     	if ( (DownloadFiles != null) && (DownloadFiles.length() > 0) && (DownloadFiles.indexOf(":") > 0) ) {
         	// First break map pairs by comma.
@@ -2827,24 +1663,25 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
             		boolean localHadWildcard = false;
             		if ( localFile.indexOf("*") >= 0 ) {
             			// Local file has a wildcard so it should be a folder with wildcard for the file:
-            			// - this does not handle * in the folder as in: folder/ * /folder/file.*
+            			// - this does not handle * in the folder as in: folder/* /folder/file.*
             			if ( Message.isDebugOn ) {
             				Message.printStatus(2, routine, "Local file has a wildcard.");
             			}
             			localHadWildcard = true;
             			// Handle Linux and Windows paths.
-            			if ( !localFile.endsWith("/ *") && !localFile.endsWith("\\*") ) {
-            				// Remote file must end with / * so that local file can also be used on S3.
+            			if ( !localFile.endsWith("/*") && !localFile.endsWith("\\*") ) {
+            				// Remote file must end with /* so that local file can also be used.
             				// This limits wildcards in the root folder but that is unlikely.
-            				message = "Local file uses * wildcard but does not end in / * - skipping.";
+            				message = "Local file uses * wildcard but does not end in /* - skipping.";
 			        		Message.printWarning(warningLevel,
 				    			MessageUtil.formatMessageTag( commandTag, ++warningCount), routine, message );
 			        		status.addToLog ( commandPhase, new CommandLogRecord(CommandStatusType.WARNING,
-				    			message, "Specify the local file with / * at the end." ) );
+				    			message, "Specify the local file with /* at the end." ) );
 			        		continue;
             			}
             			// Replace the wildcard with the remote file name without trailing /.
-            			String remoteName = getKeyName ( remoteFile, false );
+            			File remoteFileObj = new File(remoteFile);
+            			String remoteName = remoteFileObj.getName();
             			if ( (remoteName != null) && !remoteName.isEmpty() ) {
             				localFile = localFile.replace("*", remoteName);
             			}
@@ -2856,7 +1693,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			        		TSCommandProcessorUtil.expandParameterValue(processor,this,localFile)), true);
             		//downloadFilesOrig.add(localFile);
             		downloadFilesFiles.add(localFileFull);
-            		downloadFilesKeys.add(remoteFile);
+            		downloadFilesGoogleDrivePaths.add(remoteFile);
             		if ( Message.isDebugOn ) {
            				Message.printStatus(2, routine, "             Remote file: " + remoteFile );
             			if ( localHadWildcard ) {
@@ -2877,6 +1714,8 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
             	}
         	}
     	}
+
+		// Get command parameters for: List Buckets (TODO smalers 2023-12-18 convert to list Drives and handled shared)
 
     	// List buckets.
 		String ListBucketsRegEx = parameters.getValue ( "ListBucketsRegEx" );
@@ -2900,7 +1739,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     		ListBucketsCountProperty = TSCommandProcessorUtil.expandParameterValue(processor, this, ListBucketsCountProperty);
     	}
 
-    	// List files and folders.
+		// Get command parameters for: List - ListFolders
 
    		String ListScope = parameters.getValue ( "ListScope" );
     	ListScope = TSCommandProcessorUtil.expandParameterValue(processor, this, ListScope);
@@ -2911,6 +1750,9 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	if ( commandPhase == CommandPhaseType.RUN ) {
     		ListFolderPath = TSCommandProcessorUtil.expandParameterValue(processor, this, ListFolderPath);
     	}
+
+		// Get command parameters for: List - ListFiles
+
    		String ListFiles = parameters.getValue ( "ListFiles" );
 	  	boolean listFiles = true; // Default.
 	  	if ( (ListFiles != null) && ListFiles.equalsIgnoreCase("false") ) {
@@ -2947,6 +1789,8 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	  		}
 		}
     		
+		// Get command parameters for: Upload - UploadFolders
+
     	/*
     	// Upload.
     	String UploadFolders = parameters.getValue ( "UploadFolders" );
@@ -3052,6 +1896,8 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
         	}
     	}
     	*/
+
+		// Get command parameters for: Upload - UploadFiles
 
     	/*
     	String UploadFiles = parameters.getValue ( "UploadFiles" );
@@ -3193,6 +2039,9 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	}
        	*/
 
+		// Get command parameters for: Output
+
+    	// Expand the entire parameter string before parsing into pairs.
     	// Output.
 		boolean doTable = false;
 		String OutputTableID = parameters.getValue ( "OutputTableID" );
@@ -3280,6 +2129,8 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			throw new InvalidCommandParameterException ( message );
 		}
 
+		// Have processed input. Now run the command.
+		
 		try {
 			if ( commandPhase == CommandPhaseType.RUN ) {
 				// Create a session, which has the credential.
@@ -3525,13 +2376,16 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		  	    		invalidateCloudFront, cloudFrontPaths,
 		  	    		status, logLevel, warningLevel, warningCount, commandTag );
     	    	}
-    	    	else if ( s3Command == AwsS3CommandType.DOWNLOAD_OBJECTS ) {
-    	    		warningCount = doS3DownloadObjects (
+    	    	*/
+    	    	else if ( googleDriveCommand == GoogleDriveCommandType.DOWNLOAD ) {
+    	    		warningCount = doGoogleDriveDownload (
     	    			processor,
-    	    			credentialsProvider, bucket, region,
-    	    			downloadFilesKeys, downloadFilesFiles, downloadFoldersKeys, downloadFoldersDirectories,
+    	    			googleDriveSession,
+    	    			downloadFilesGoogleDrivePaths, downloadFilesFiles,
+    	    			downloadFoldersGoogleDrivePaths, downloadFoldersDirectories,
     	    			status, logLevel, warningLevel, warningCount, commandTag );
     	    	}
+	    		/*
     	    	else if ( s3Command == AwsS3CommandType.LIST_BUCKETS ) {
     	    		warningCount = doS3ListBuckets (
     	    			processor,
@@ -3667,9 +2521,11 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
   	    	else if ( s3Command == AwsS3CommandType.DELETE_OBJECTS ) {
 				message = "Unexpected error deleting object (" + e + ").";
 			}
-  	    	else if ( s3Command == AwsS3CommandType.DOWNLOAD_OBJECTS ) {
-				message = "Unexpected error downloading objects (" + e + ").";
+			*/
+  	    	if ( googleDriveCommand == GoogleDriveCommandType.DOWNLOAD ) {
+				message = "Unexpected error downloading files (" + e + ").";
 			}
+  	    	/*
   	    	else if ( s3Command == AwsS3CommandType.LIST_BUCKETS ) {
 				message = "Unexpected error listing buckets (" + e + ").";
 			}
@@ -3708,6 +2564,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 
 	/**
 	Set the output file that is created by this command.  This is only used internally.
+	@param file the output file created by this command
 	*/
 	private void setOutputFile ( File file ) {
     	__OutputFile_File = file;
@@ -3715,6 +2572,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 
 	/**
 	Set the table that is read by this class in discovery mode.
+	@param table the output table created by this command
 	*/
 	private void setDiscoveryTable ( DataTable table ) {
     	this.discoveryOutputTable = table;
