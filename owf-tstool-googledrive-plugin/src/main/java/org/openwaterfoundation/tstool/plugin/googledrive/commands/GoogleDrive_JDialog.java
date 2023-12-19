@@ -869,6 +869,8 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
 
     JGUIUtil.addComponent(download_JPanel, new JLabel ("Specify files and folders to download."),
 		0, ++yDownload, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(download_JPanel, new JLabel ("<html><b>Currenlty only files can be downloaded.</b></html>."),
+		0, ++yDownload, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(download_JPanel, new JLabel ("Use the 'Edit' button to view information about Google Drive and local file and folder paths."),
 		0, ++yDownload, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(download_JPanel, new JSeparator(SwingConstants.HORIZONTAL),
@@ -885,7 +887,9 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
         1, yDownload, 2, 2, 1, 0, insetsTLBR, GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST);
     JGUIUtil.addComponent(download_JPanel, new JLabel ("Google Drive folder path(s) and local folder(s)."),
         3, yDownload, 4, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST );
-    JGUIUtil.addComponent(download_JPanel, new SimpleJButton ("Edit","EditDownloadFolders",this),
+    SimpleJButton folderEditButton = new SimpleJButton ("Edit","EditDownloadFolders",this);
+    folderEditButton.setEnabled(false);
+    JGUIUtil.addComponent(download_JPanel, folderEditButton,
         3, ++yDownload, 4, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST );
 
     JGUIUtil.addComponent(download_JPanel, new JLabel ("Download files:"),
@@ -897,7 +901,7 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     __DownloadFiles_JTextArea.addKeyListener (this);
     JGUIUtil.addComponent(download_JPanel, new JScrollPane(__DownloadFiles_JTextArea),
         1, yDownload, 2, 2, 1, 0, insetsTLBR, GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(download_JPanel, new JLabel ("Google Drive file path(s) nd local file(s)."),
+    JGUIUtil.addComponent(download_JPanel, new JLabel ("Google Drive file path(s) and local file(s)."),
         3, yDownload, 4, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST );
     JGUIUtil.addComponent(download_JPanel, new SimpleJButton ("Edit","EditDownloadFiles",this),
         3, ++yDownload, 4, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST );
@@ -1175,7 +1179,7 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     __main_JTabbedPane.addTab ( "Output", output_JPanel );
 
     JGUIUtil.addComponent(output_JPanel, new JLabel (
-    	"The following parameters are used with 'List Buckets' and 'List Objects' commands."),
+    	"The following parameters are used with 'List' command."),
 		0, ++yOutput, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(output_JPanel, new JLabel ("An output table and/or file can be created."),
 		0, ++yOutput, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);

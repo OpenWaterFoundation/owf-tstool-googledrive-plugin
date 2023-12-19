@@ -1,8 +1,7 @@
-# OWF / TSTool AWS Plugin #
+# OWF / TSTool Google Drive Plugin #
 
-This documentation provides user documentation for the Open Water Foundation TSTool Amazon Web Services (AWS) plugin.
-This plugin allows automation of workflows that use AWS services such as S3 storage and CloudFront content delivery network (CDN).
-The plugin also provides a stand-alone S3 browser application that can be used to explore S3 files.
+This is the user documentation for the Open Water Foundation TSTool Google Drive plugin.
+This plugin allows automation of workflows that use Google Drive.
 
 *   [Acknowledgements](#acknowledgements)
 *   [How to Use this Documentation](#how-to-use-this-documentation)
@@ -10,10 +9,8 @@ The plugin also provides a stand-alone S3 browser application that can be used t
 
 This documentation has been updated for:
 
-*   TSTool version 14.8.4
-*   TSTool AWS plugin version 1.4.1
-
-**TSTool 14.6.0 or later is required for this version of the plugin due to design changes.**
+*   TSTool version 14.9.1
+*   TSTool Google Drive plugin version 1.0.0
 
 ----------------
 
@@ -22,7 +19,7 @@ This documentation has been updated for:
 TSTool has been developed by the [Open Water Foundation (OWF)](https://openwaterfoundation.org) with significant
 funding by the State of Colorado and other sources.
 
-The AWS plugin has been developed with funding from the Open Water Foundation.
+The AWS plugin has been developed with funding from the Open Water Foundation and TriLynx Systems.
 
 ## How to Use this Documentation ##
 
@@ -44,4 +41,4 @@ See also the full TSTool documentation:
 
 ## Software Download Page ##
 
-See the [TSTool AWS Plugin](https://software.openwaterfoundation.org/tstool-aws-plugin/) download page.
+See the [TSTool Google Drive Plugin](https://software.openwaterfoundation.org/tstool-googledrive-plugin/) download page.

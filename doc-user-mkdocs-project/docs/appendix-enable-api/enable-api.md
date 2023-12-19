@@ -1,7 +1,10 @@
 # TSTool / Enable API #
 
+**This documentation is under development as the plugin is tested in multiple Google Drive accounts.**
+
 This appendix describes how to enable the Google Drive API,
 which is necessary to enable Google Drive plugin features.
+Enabling the API typically requires administrative privileges for the Google account manager for an organization.
 
 *   [Overview](#overview)
 *   [Enable API](#enable-api)
@@ -21,8 +24,13 @@ The TSTool Google Drive plugin is developed and tested on Windows but can also b
 Google Drive is available if a plan has been purchased from Google, for example Google Workspace.
 
 *   See the [Google Drive download page](https://www.google.com/drive/download/).
+*   Desktop Google drive does not need to be installed,
+    although it can simplify troubleshooting.
 
 Once installed, login to Google Drive, which typically maps drive `G:` on Windows.
+
+The online Google Drive can also be accessed,
+for example see the grid tool in the upper right of Google Mail and Calendar web pages.
 
 ## Enable API ##
 

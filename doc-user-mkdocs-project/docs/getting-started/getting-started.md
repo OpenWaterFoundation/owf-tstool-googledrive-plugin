@@ -79,4 +79,4 @@ Google Drive Plugin Commands
 
 | **Command**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | **Description** |
 | -- | -- |
-| [`GoogleDrive`](../command-ref/GoogleDrive/GoogleDrive.md) | Perform Google Drive tasks: <ul><li>list files</li></ul>|
+| [`GoogleDrive`](../command-ref/GoogleDrive/GoogleDrive.md) | Perform Google Drive tasks: <ul><li>download files</li><li>list files</li></ul>|

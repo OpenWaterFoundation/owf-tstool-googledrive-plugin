@@ -1,4 +1,33 @@
-/* Custom styles to override MkDocs defaults and enhance theme */
+/*
+ * Custom styles to override MkDocs defaults and enhance theme:
+ * - some styles are to ensure a clean, modern look
+ * - others are for ADA compliance required by the State of Colorado
+ */
+
+/**
+ * Web accessibility requires underline for links so that colorblind people can see the link.
+ */
+body a:link {
+  text-decoration: underline;
+}
+
+/**
+ * Don't underline links in the nav section (menus):
+ * - the following (instead of the above) seems to work but an issue is probably
+ *   that MkDocs includes the navigation in the body so disabling underline
+ *   will cause accessibility scan violations?
+ */
+/*
+div.md-content a {
+  text-decoration: underline;
+}
+*/
+
+/* This does not work either.
+nav a {
+  text-decoration none; !important
+}
+*/
 
 /* Unordered list <ul> symbols:
  * - level 2 is hollow circle
@@ -6,11 +35,11 @@
  * - ul default is filled disc (bullet)
  */
 article ul ul {
-	list-style-type:  circle !important;
+  list-style-type:  circle !important;
 }
 
 article ul ul ul {
-	list-style-type:  square !important;
+  list-style-type:  square !important;
 }
 
 /*
@@ -19,18 +48,18 @@ article ul ul ul {
  * Instead, set the background to a light gray, which works OK.
 */
 thead th {
-	background-color: #cccccc;
+  background-color: #cccccc;
 }
 
 /*
  * None of these seem to work
  * Center tables horizontally on page.
 table {
-	align: center;
+  align: center;
 }
 
 table {
-	margin: 0 auto;
+  margin: 0 auto;
 }
 */
 
@@ -38,5 +67,5 @@ table {
  * Align text to be centered.
  */
 .alignCenter {
-	text-align: center;
+  text-align: center;
 }

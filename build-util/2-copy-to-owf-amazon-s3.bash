@@ -71,9 +71,9 @@ getCloudFrontDistribution() {
 getPluginVersion() {
   local srcFile
 
-  # Maven folder structure results in duplicate 'owf-tstool-google-plugin'?
+  # Maven folder structure results in duplicate 'owf-tstool-googledrive-plugin'?
   # TODO smalers 2022-05-19 need to enable this.
-  srcFile="${repoFolder}/owf-tstool-google-plugin/src/main/java/org/openwaterfoundation/tstool/plugin/google/PluginMeta.java"  
+  srcFile="${repoFolder}/owf-tstool-googledrive-plugin/src/main/java/org/openwaterfoundation/tstool/plugin/googledrive/PluginMeta.java"  
   # Get the version from the code
   # line looks like:
   #  public static final String VERSION = "1.0.0 (2022-05-27)";
@@ -394,7 +394,7 @@ uploadInstaller() {
     # The following handles Windows upload when run on Cygwin.
     if [ "$includeWindows" = "yes" ]; then
       # File for the zip file (Windows).
-      zipFilePattern="${distFolder}/tstool-google-plugin-${pluginVersion}-win-*.zip"
+      zipFilePattern="${distFolder}/tstool-googledrive-plugin-${pluginVersion}-win-*.zip"
       logInfo "Zip file pattern is: ${zipFilePattern}"
       # Get the latest installer for the version.
       latestZipFile=$(ls -1 ${zipFilePattern} | sort -r | head -1)
@@ -422,7 +422,7 @@ uploadInstaller() {
             exit 1
           fi
           # Use a wildcard to invalidate subfolders.
-          cloudFrontFile="/tstool-google-plugin/${pluginVersion}/software/*"
+          cloudFrontFile="/tstool-googledrive-plugin/${pluginVersion}/software/*"
           invalidateCloudFront ${cloudFrontDistributionId} ${cloudFrontFile}
         fi
       else
@@ -460,8 +460,8 @@ pluginVersion=$(getPluginVersion)
 setAwsExe
 
 # Root AWS S3 location where files are to be uploaded.
-s3FolderUrl="s3://software.openwaterfoundation.org/tstool-google-plugin"
-gpDownloadUrl="https://software.openwaterfoundation.org/tstool-google-plugin"
+s3FolderUrl="s3://software.openwaterfoundation.org/tstool-googledrive-plugin"
+gpDownloadUrl="https://software.openwaterfoundation.org/tstool-googledrive-plugin"
 
 # Defaults for whether operating systems are included in upload:
 # - default is to upload all but change when Windows is not involved since won't be on the machine
