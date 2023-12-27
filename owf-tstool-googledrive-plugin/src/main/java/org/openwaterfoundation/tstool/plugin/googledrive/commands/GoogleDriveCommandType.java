@@ -88,6 +88,7 @@ public enum GoogleDriveCommandType {
     	List<GoogleDriveCommandType> choices = new ArrayList<>();
     	choices.add ( GoogleDriveCommandType.DOWNLOAD );
     	choices.add ( GoogleDriveCommandType.LIST );
+    	choices.add ( GoogleDriveCommandType.LIST_DRIVES );
     	return choices;
 	}
 
