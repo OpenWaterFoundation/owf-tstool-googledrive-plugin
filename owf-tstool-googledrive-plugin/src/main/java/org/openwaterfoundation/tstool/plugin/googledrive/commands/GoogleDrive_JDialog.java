@@ -36,7 +36,6 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import javax.swing.JDialog;
@@ -55,13 +54,13 @@ import javax.swing.event.ChangeListener;
 
 import org.openwaterfoundation.tstool.plugin.googledrive.GoogleDriveAuthenticationMethodType;
 import org.openwaterfoundation.tstool.plugin.googledrive.GoogleDriveSession;
+import org.openwaterfoundation.tstool.plugin.googledrive.PluginMeta;
 
 import RTi.Util.GUI.DictionaryJDialog;
 import RTi.Util.GUI.JFileChooserFactory;
 import RTi.Util.GUI.JGUIUtil;
 import RTi.Util.GUI.SimpleJButton;
 import RTi.Util.GUI.SimpleJComboBox;
-import RTi.Util.GUI.StringListJDialog;
 import RTi.Util.Help.HelpViewer;
 import RTi.Util.IO.CommandProcessor;
 import RTi.Util.IO.IOUtil;
@@ -83,8 +82,13 @@ private SimpleJButton __cancel_JButton = null;
 private SimpleJButton __ok_JButton = null;
 private SimpleJButton __help_JButton = null;
 private JTabbedPane __main_JTabbedPane = null;
+private JLabel sessionProblem_JLabel = null;
+private JLabel sessionRecommendation_JLabel = null;
+private JTextField __SessionID_JTextField = null;
 private SimpleJComboBox __AuthenticationMethod_JComboBox = null;
 private SimpleJComboBox __GoogleDriveCommand_JComboBox = null;
+// Read-only note about whether the authentication credentials are OK.
+private JTextField __CredentialsStatus_JTextField = null;
 //private SimpleJComboBox __IfInputNotFound_JComboBox = null;
 
 // Copy tab.
@@ -118,9 +122,9 @@ private JTextField __ListFolderPath_JTextField = null;
 private JTextField __ListRegEx_JTextField = null;
 private SimpleJComboBox __ListFiles_JComboBox = null;
 private SimpleJComboBox __ListFolders_JComboBox = null;
+private SimpleJComboBox __ListShared_JComboBox = null;
 private SimpleJComboBox __ListTrashed_JComboBox = null;
-private JTextField __MaxKeys_JTextField = null;
-private JTextField __MaxObjects_JTextField = null;
+private JTextField __ListMax_JTextField = null;
 private JTextField __ListCountProperty_JTextField = null;
 
 // Upload tab.
@@ -171,7 +175,12 @@ public void actionPerformed( ActionEvent event ) {
 
 	Object o = event.getSource();
 
-    if ( o == this.__GoogleDriveCommand_JComboBox ) {
+    if ( o == this.__AuthenticationMethod_JComboBox ) {
+    	// Create the session to check authentication:
+    	// - only called if ItemListener is enabled.
+    	createGoogleDriveSession();
+    }
+    else if ( o == this.__GoogleDriveCommand_JComboBox ) {
     	setTabForGoogleDriveCommand();
     }
     else if ( o == __browseOutput_JButton ) {
@@ -311,7 +320,7 @@ public void actionPerformed( ActionEvent event ) {
         }
     }
 	else if ( o == __help_JButton ) {
-		//HelpViewer.getInstance().showHelp("command", "AwsS3", PluginMeta.getDocumentationRootUrl());
+		HelpViewer.getInstance().showHelp("command", "GoogleDrive", PluginMeta.getDocumentationRootUrl());
 	}
 	else if ( o == __ok_JButton ) {
 		refresh ();
@@ -400,6 +409,7 @@ private void checkInput () {
 	// Put together a list of parameters to check.
 	PropList props = new PropList ( "" );
 	// General.
+	String SessionID = __SessionID_JTextField.getText().trim();
 	String AuthenticationMethod = __AuthenticationMethod_JComboBox.getSelected();
 	String GoogleDriveCommand = __GoogleDriveCommand_JComboBox.getSelected();
 	// Copy.
@@ -423,9 +433,9 @@ private void checkInput () {
 	String ListRegEx = __ListRegEx_JTextField.getText().trim();
 	String ListFiles = __ListFiles_JComboBox.getSelected();
 	String ListFolders = __ListFolders_JComboBox.getSelected();
+	String ListShared = __ListShared_JComboBox.getSelected();
 	String ListTrashed = __ListTrashed_JComboBox.getSelected();
-	String MaxKeys = __MaxKeys_JTextField.getText().trim();
-	String MaxObjects = __MaxObjects_JTextField.getText().trim();
+	String ListMax = __ListMax_JTextField.getText().trim();
 	String ListCountProperty = __ListCountProperty_JTextField.getText().trim();
 	// Upload.
 	//String UploadFolders = __UploadFolders_JTextArea.getText().trim().replace("\n"," ");
@@ -436,6 +446,9 @@ private void checkInput () {
 	String AppendOutput = __AppendOutput_JComboBox.getSelected();
 	__error_wait = false;
 
+	if ( (SessionID != null) && !SessionID.isEmpty() ) {
+		props.set ( "SessionID", SessionID );
+	}
 	if ( (AuthenticationMethod != null) && !AuthenticationMethod.isEmpty() ) {
 		props.set ( "AuthenticationMethod", AuthenticationMethod );
 	}
@@ -499,14 +512,14 @@ private void checkInput () {
 	if ( (ListFolders != null) && !ListFolders.isEmpty() ) {
 		props.set ( "ListFolders", ListFolders );
 	}
+	if ( (ListShared != null) && !ListShared.isEmpty() ) {
+		props.set ( "ListShared", ListShared );
+	}
 	if ( (ListTrashed != null) && !ListTrashed.isEmpty() ) {
 		props.set ( "ListTrashed", ListTrashed );
 	}
-	if ( (MaxKeys != null) && !MaxKeys.isEmpty() ) {
-		props.set ( "MaxKeys", MaxKeys );
-	}
-	if ( (MaxObjects != null) && !MaxObjects.isEmpty() ) {
-		props.set ( "MaxObjects", MaxObjects );
+	if ( (ListMax != null) && !ListMax.isEmpty() ) {
+		props.set ( "ListMax", ListMax );
 	}
 	if ( (ListCountProperty != null) && !ListCountProperty.isEmpty() ) {
 		props.set ( "ListCountProperty", ListCountProperty );
@@ -519,6 +532,7 @@ private void checkInput () {
 	if ( (UploadFiles != null) && !UploadFiles.isEmpty() ) {
 		props.set ( "UploadFiles", UploadFiles );
 	}
+	*/
 	// Output.
     if ( (OutputTableID != null) && !OutputTableID.isEmpty() ) {
         props.set ( "OutputTableID", OutputTableID );
@@ -529,7 +543,6 @@ private void checkInput () {
     if ( (AppendOutput != null) && !AppendOutput.isEmpty() ) {
         props.set ( "AppendOutput", AppendOutput );
     }
-	*/
     /*
 	if ( IfInputNotFound.length() > 0 ) {
 		props.set ( "IfInputNotFound", IfInputNotFound );
@@ -551,6 +564,7 @@ In this case the command parameters have already been checked and no errors were
 */
 private void commitEdits () {
 	// General.
+	String SessionID = __SessionID_JTextField.getText().trim();
 	String AuthenticationMethod = __AuthenticationMethod_JComboBox.getSelected();
 	String GoogleDriveCommand = __GoogleDriveCommand_JComboBox.getSelected();
 	// Copy.
@@ -574,9 +588,9 @@ private void commitEdits () {
 	String ListRegEx = __ListRegEx_JTextField.getText().trim();
 	String ListFiles = __ListFiles_JComboBox.getSelected();
 	String ListFolders = __ListFolders_JComboBox.getSelected();
+	String ListShared = __ListShared_JComboBox.getSelected();
 	String ListTrashed = __ListTrashed_JComboBox.getSelected();
-	String MaxKeys = __MaxKeys_JTextField.getText().trim();
-	String MaxObjects = __MaxObjects_JTextField.getText().trim();
+	String ListMax = __ListMax_JTextField.getText().trim();
 	String ListCountProperty = __ListCountProperty_JTextField.getText().trim();
 	// Upload.
 	//String UploadFolders = __UploadFolders_JTextArea.getText().trim().replace("\n"," ");
@@ -587,6 +601,7 @@ private void commitEdits () {
 	String AppendOutput = __AppendOutput_JComboBox.getSelected();
 
     // General.
+	__command.setCommandParameter ( "SessionID", SessionID );
 	__command.setCommandParameter ( "AuthenticationMethod", AuthenticationMethod );
 	__command.setCommandParameter ( "GoogleDriveCommand", GoogleDriveCommand );
 	// Copy.
@@ -610,9 +625,9 @@ private void commitEdits () {
 	__command.setCommandParameter ( "ListRegEx", ListRegEx );
 	__command.setCommandParameter ( "ListFiles", ListFiles );
 	__command.setCommandParameter ( "ListFolders", ListFolders );
+	__command.setCommandParameter ( "ListShared", ListShared );
 	__command.setCommandParameter ( "ListTrashed", ListTrashed );
-	__command.setCommandParameter ( "MaxKeys", MaxKeys );
-	__command.setCommandParameter ( "MaxObjects", MaxObjects );
+	__command.setCommandParameter ( "ListMax", ListMax );
 	__command.setCommandParameter ( "ListCountProperty", ListCountProperty );
 	// Upload.
 	//__command.setCommandParameter ( "UploadFolders", UploadFolders );
@@ -621,6 +636,72 @@ private void commitEdits () {
 	__command.setCommandParameter ( "OutputTableID", OutputTableID );
 	__command.setCommandParameter ( "OutputFile", OutputFile );
 	__command.setCommandParameter ( "AppendOutput", AppendOutput );
+}
+
+/**
+ * Create the Google Drive Session, which is used to test the connection.
+ * This should be called after the UI components are created to display authentication stations and problems.
+ */
+private void createGoogleDriveSession () {
+	String routine = getClass().getSimpleName() + ".createGoogleDriveSession";
+    try {
+    	String SessionID = __SessionID_JTextField.getText().trim();
+	   	String AuthenticationMethod = __AuthenticationMethod_JComboBox.getSelected();
+		if ( (AuthenticationMethod == null) || AuthenticationMethod.isEmpty() ) {
+			// Use the default.
+			AuthenticationMethod = "" + GoogleDriveAuthenticationMethodType.SERVICE_ACCOUNT_KEY;
+		}
+		Message.printStatus(2, routine, "Creating a GoogleDriveSession for SessionID=\"" + SessionID +
+			"\", AuthenticationMethod=\"" + AuthenticationMethod + "\"");
+		if ( (SessionID == null) || SessionID.isEmpty() ||
+			(AuthenticationMethod == null) || AuthenticationMethod.isEmpty() ) {
+			// Don't have data.  Set to null.
+			this.googleDriveSession = null;
+			this.__CredentialsStatus_JTextField.setText("Not authenticated");
+			this.sessionProblem_JLabel.setText (
+				"<html><b>ERROR:  Can't check the Google Drive authentication.</b></html>" );
+			this.sessionRecommendation_JLabel.setText (
+				"<html><b>RECOMMENDATION:  Set the Session ID.</b></html>" );
+			this.__CredentialsStatus_JTextField.setText("");
+			return;
+		}
+		else {
+			// Have data to create a session.
+			GoogleDriveAuthenticationMethodType authenticationMethod =
+				GoogleDriveAuthenticationMethodType.valueOfIgnoreCase(AuthenticationMethod);
+			this.googleDriveSession = new GoogleDriveSession ( SessionID, authenticationMethod );
+		}
+    }
+    catch ( Exception e ) {
+    	this.googleDriveSession = null;
+       	this.__CredentialsStatus_JTextField.setText("Not authenticated");
+    	Message.printWarning(3, routine, "Error creating Google Drive session.");
+    	Message.printWarning(3, routine, e );
+    }
+
+    // Set the UI text fields that indicate whether authentication worked.
+    
+    if ( this.googleDriveSession == null ) {
+        this.sessionProblem_JLabel.setText (
+        	"<html><b>ERROR: User's Google Drive configuration is invalid.</b></html>" );
+    	this.sessionRecommendation_JLabel.setText (
+        	"<html><b>RECOMMENDATION: Confirm that the session ID and authentication method are OK.  See the log file.</b></html>" );
+       	this.__CredentialsStatus_JTextField.setText("Not authenticated");
+    }
+    else {
+    	if ( this.googleDriveSession.isSessionAuthenticated() ) {
+    		this.sessionProblem_JLabel.setText ( "User's Google Drive configuration is authenticated." );
+    		this.sessionRecommendation_JLabel.setText( "Additional checks are performed when running the command." );
+        	this.__CredentialsStatus_JTextField.setText("Authenticated");
+    	}
+    	else {
+        	this.sessionProblem_JLabel.setText (
+        		"<html><b>ERROR: " + this.googleDriveSession.getProblem() + "</b></html>" );
+        	this.sessionRecommendation_JLabel.setText (
+        		"<html><b>RECOMMENDATION: " + this.googleDriveSession.getProblemRecommendation() + "</b></html>" );
+        	this.__CredentialsStatus_JTextField.setText("Not authenticated");
+    	}
+    }
 }
 
 /**
@@ -640,18 +721,6 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
 
     Insets insetsTLBR = new Insets(2,2,2,2);
 
-    // Create a session using authentication method.
-
-    try {
-		String AuthenticationMethod = __command.getCommandParameters().getValue ( "AuthenticationMethod" );
-		GoogleDriveAuthenticationMethodType authenticationMethod =
-			GoogleDriveAuthenticationMethodType.valueOfIgnoreCase(AuthenticationMethod);
-    	this.googleDriveSession = new GoogleDriveSession(authenticationMethod);
-    }
-    catch ( Exception e ) {
-    	this.googleDriveSession = null;
-    }
-
 	// Main panel.
 
 	JPanel main_JPanel = new JPanel();
@@ -669,7 +738,7 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     	"However, this command uses folder and file names as shown in the My Drive folder."),
 		0, ++y, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(main_JPanel, new JLabel (
-    	"Paths for this command are specified without the leading 'G:/My Drive' and should use forward slashes."),
+    	"Google Drive paths for this command are specified without the leading 'G:/My Drive' and should use forward slashes."),
 		0, ++y, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     if ( __working_dir != null ) {
     	JGUIUtil.addComponent(main_JPanel, new JLabel (
@@ -678,20 +747,29 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     	JGUIUtil.addComponent(main_JPanel, new JLabel ("    " + __working_dir),
 		0, ++y, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     }
-    if ( this.googleDriveSession == null ) {
-    	JGUIUtil.addComponent(main_JPanel, new JLabel (
-        	"<html><b>ERROR: User's Google Drive configuration is invalid</b></html>" ),
-        	0, ++y, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    }
-    else {
-    	JGUIUtil.addComponent(main_JPanel, new JLabel (
-        	"User's Google Drive configuration is OK."),
-        	0, ++y, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    }
+    // Labels will be populated below:
+    // - the following initial messages should only be shown for an instant
+    this.sessionProblem_JLabel = new JLabel("Google Drive authentication is unknown.");
+   	JGUIUtil.addComponent(main_JPanel, this.sessionProblem_JLabel,
+       	0, ++y, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST);
+    this.sessionRecommendation_JLabel = new JLabel("Checks are performed after initializing the data.");
+   	JGUIUtil.addComponent(main_JPanel, this.sessionRecommendation_JLabel,
+       	0, ++y, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST);
+
     JGUIUtil.addComponent(main_JPanel, new JSeparator(SwingConstants.HORIZONTAL),
     	0, ++y, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST);
 
    	this.ignoreEvents = true; // So that a full pass of initialization can occur.
+
+    JGUIUtil.addComponent(main_JPanel, new JLabel ( "Session ID:"),
+        0, ++y, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
+    __SessionID_JTextField = new JTextField ( "", 30 );
+    __SessionID_JTextField.setToolTipText("Session ID for credentials.");
+    __SessionID_JTextField.addKeyListener ( this );
+    JGUIUtil.addComponent(main_JPanel, __SessionID_JTextField,
+        1, y, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(main_JPanel, new JLabel ( "Required - session ID for credentials."),
+        3, y, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
     JGUIUtil.addComponent(main_JPanel, new JLabel ( "Authentication method:"),
 		0, ++y, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
@@ -707,6 +785,16 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     JGUIUtil.addComponent(main_JPanel, new JLabel("Optional - authorization type (default="
 		+ GoogleDriveAuthenticationMethodType.SERVICE_ACCOUNT_KEY + ")."),
 		3, y, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+
+    JGUIUtil.addComponent(main_JPanel, new JLabel ( "Credentials status:"),
+        0, ++y, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
+    __CredentialsStatus_JTextField = new JTextField ( "", 30 );
+    __CredentialsStatus_JTextField.setToolTipText("Whether credentials are OK.");
+    __CredentialsStatus_JTextField.setEditable ( false );
+    JGUIUtil.addComponent(main_JPanel, __CredentialsStatus_JTextField,
+        1, y, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(main_JPanel, new JLabel ( "Are credentials OK?"),
+        3, y, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
     JGUIUtil.addComponent(main_JPanel, new JLabel ( "Google Drive command:"),
 		0, ++y, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
@@ -869,7 +957,7 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
 
     JGUIUtil.addComponent(download_JPanel, new JLabel ("Specify files and folders to download."),
 		0, ++yDownload, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(download_JPanel, new JLabel ("<html><b>Currenlty only files can be downloaded.</b></html>."),
+    JGUIUtil.addComponent(download_JPanel, new JLabel ("<html><b>Currently only files (not folders) can be downloaded.</b></html>."),
 		0, ++yDownload, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(download_JPanel, new JLabel ("Use the 'Edit' button to view information about Google Drive and local file and folder paths."),
 		0, ++yDownload, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
@@ -976,14 +1064,14 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     		+ "       <td" + tdStyle + ">Path for the object (/path/to/file)</td>"
     		+ "    </tr>"
     		+ "    <tr" + trStyle + ">"
-    		+ "       <td" + tdStyle + ">Files in My Drive (<b>not currently supported</b>)</td>"
+    		+ "       <td" + tdStyle + ">Files in My Drive</td>"
     		+ "       <td" + tdStyle + ">Folder</td>"
     		+ "       <td" + tdStyle + ">/</td>"
     		+ "    </tr>"
     		+ "    <tr" + trStyle + ">"
     		+ "       <td" + tdStyle + ">Files in folder</td>"
     		+ "       <td" + tdStyle + ">Folder</td>"
-    		+ "       <td" + tdStyle + ">Folder path ending in /</td>"
+    		+ "       <td" + tdStyle + ">/folder/path/ending/in/</td>"
     		+ "    </tr>"
     		+ "    <tr" + trStyle + ">"
     		+ "       <td" + tdStyle + ">All files in My Drive (<b>not currently supported</b>)</td>"
@@ -1080,10 +1168,28 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
 		"Optional - list folders? (default=" + __command._True + ")."),
 		3, yList, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
+   JGUIUtil.addComponent(list_JPanel, new JLabel ( "List shared?:"),
+		0, ++yList, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
+	__ListShared_JComboBox = new SimpleJComboBox ( false );
+	__ListShared_JComboBox.setToolTipText("Indicate whether to list shared files?");
+	List<String> listSharedChoices = new ArrayList<>();
+	listSharedChoices.add ( "" );	// Default.
+	listSharedChoices.add ( __command._False );
+	listSharedChoices.add ( __command._Only );
+	listSharedChoices.add ( __command._True );
+	__ListShared_JComboBox.setData(listSharedChoices);
+	__ListShared_JComboBox.select ( 0 );
+	__ListShared_JComboBox.addActionListener ( this );
+    JGUIUtil.addComponent(list_JPanel, __ListShared_JComboBox,
+		1, yList, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(list_JPanel, new JLabel(
+		"Optional - list shared files? (default=" + __command._False + ")."),
+		3, yList, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+
    JGUIUtil.addComponent(list_JPanel, new JLabel ( "List trashed?:"),
 		0, ++yList, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
 	__ListTrashed_JComboBox = new SimpleJComboBox ( false );
-	__ListTrashed_JComboBox.setToolTipText("Indicate whether to list files?");
+	__ListTrashed_JComboBox.setToolTipText("Indicate whether to list trashed files?");
 	List<String> listTrashedChoices = new ArrayList<>();
 	listTrashedChoices.add ( "" );	// Default.
 	listTrashedChoices.add ( __command._False );
@@ -1094,28 +1200,17 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     JGUIUtil.addComponent(list_JPanel, __ListTrashed_JComboBox,
 		1, yList, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(list_JPanel, new JLabel(
-		"Optional - list files? (default=" + __command._False + ")."),
+		"Optional - list trashed files? (default=" + __command._False + ")."),
 		3, yList, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
-    JGUIUtil.addComponent(list_JPanel, new JLabel ( "Maximum keys:"),
+    JGUIUtil.addComponent(list_JPanel, new JLabel ( "List maximum:"),
         0, ++yList, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
-    __MaxKeys_JTextField = new JTextField ( "", 10 );
-    __MaxKeys_JTextField.setToolTipText("Used internally by AWS web services.");
-    __MaxKeys_JTextField.addKeyListener ( this );
-    JGUIUtil.addComponent(list_JPanel, __MaxKeys_JTextField,
+    __ListMax_JTextField = new JTextField ( "", 10 );
+    __ListMax_JTextField.setToolTipText("Use to limit the size of the query results.");
+    __ListMax_JTextField.addKeyListener ( this );
+    JGUIUtil.addComponent(list_JPanel, __ListMax_JTextField,
         1, yList, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(list_JPanel, new JLabel ( "Optional - maximum number of object keys read per request (default="
-    	+ this.__command._MaxKeys + ")."),
-        3, yList, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-
-    JGUIUtil.addComponent(list_JPanel, new JLabel ( "Maximum objects:"),
-        0, ++yList, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
-    __MaxObjects_JTextField = new JTextField ( "", 10 );
-    __MaxObjects_JTextField.setToolTipText("Use to limit the size of the query results.");
-    __MaxObjects_JTextField.addKeyListener ( this );
-    JGUIUtil.addComponent(list_JPanel, __MaxObjects_JTextField,
-        1, yList, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(list_JPanel, new JLabel ( "Optional - maximum number of object read (default=2000)."),
+    JGUIUtil.addComponent(list_JPanel, new JLabel ( "Optional - maximum number of items read (default=no limit)."),
         3, yList, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
     JGUIUtil.addComponent(list_JPanel, new JLabel("List objects count property:"),
@@ -1298,6 +1393,12 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
 	// Refresh the contents.
     refresh ();
 
+    // Create a session using authentication method:
+    // - will only work if the SessionID and AuthenticationMethod are set (e.g, from previously-edited command)
+    // - this displays whether the authentication is OK
+    // - put this after UI components have been created with command parameter values and to receive the output
+    createGoogleDriveSession();
+
     pack();
     JGUIUtil.center( this );
 	// Dialogs do not need to be resizable.
@@ -1317,6 +1418,11 @@ public void itemStateChanged ( ItemEvent e ) {
     if ( o == this.__GoogleDriveCommand_JComboBox ) {
     	setTabForGoogleDriveCommand();
     }
+    if ( o == this.__AuthenticationMethod_JComboBox ) {
+    	// Create the session to check authentication:
+    	// - only called if ItemListener is enabled.
+    	createGoogleDriveSession();
+    }
 	refresh();
 }
 
@@ -1332,6 +1438,11 @@ public void keyPressed ( KeyEvent event ) {
 }
 
 public void keyReleased ( KeyEvent event ) {
+	if ( event.getComponent() == this.__SessionID_JTextField ) {
+    	// Get the session to check authentication:
+		// - if this is slow, may need to do mouse motion event and check for exiting the field?
+    	createGoogleDriveSession();
+	}
 	refresh();
 }
 
@@ -1351,6 +1462,7 @@ Refresh the command from the other text field contents.
 private void refresh () {
 	String routine = getClass().getSimpleName() + ".refresh";
 	// General.
+	String SessionID = "";
 	String AuthenticationMethod = "";
 	String GoogleDriveCommand = "";
 	// Copy.
@@ -1374,9 +1486,9 @@ private void refresh () {
 	String ListRegEx = "";
 	String ListFiles = "";
 	String ListFolders = "";
+	String ListShared = "";
 	String ListTrashed = "";
-	String MaxKeys = "";
-	String MaxObjects = "";
+	String ListMax = "";
 	String ListCountProperty = "";
 	// Upload.
 	String UploadFolders = "";
@@ -1391,6 +1503,7 @@ private void refresh () {
 		__first_time = false;
         parameters = __command.getCommandParameters();
         // General.
+		SessionID = parameters.getValue ( "SessionID" );
 		AuthenticationMethod = parameters.getValue ( "AuthenticationMethod" );
 		GoogleDriveCommand = parameters.getValue ( "GoogleDriveCommand" );
 		// Copy.
@@ -1414,9 +1527,9 @@ private void refresh () {
 		ListRegEx = parameters.getValue ( "ListRegEx" );
 		ListFiles = parameters.getValue ( "ListFiles" );
 		ListFolders = parameters.getValue ( "ListFolders" );
+		ListShared = parameters.getValue ( "ListShared" );
 		ListTrashed = parameters.getValue ( "ListTrashed" );
-		MaxKeys = parameters.getValue ( "MaxKeys" );
-		MaxObjects = parameters.getValue ( "MaxObjects" );
+		ListMax = parameters.getValue ( "ListMax" );
 		ListCountProperty = parameters.getValue ( "ListCountProperty" );
 		// Upload.
 		UploadFolders = parameters.getValue ( "UploadFolders" );
@@ -1426,6 +1539,11 @@ private void refresh () {
 		OutputFile = parameters.getValue ( "OutputFile" );
 		AppendOutput = parameters.getValue ( "AppendOutput" );
 		//IfInputNotFound = parameters.getValue ( "IfInputNotFound" );
+
+		// Set the parameter values in the UI components.
+        if ( SessionID != null ) {
+            __SessionID_JTextField.setText ( SessionID );
+        }
 		if ( JGUIUtil.isSimpleJComboBoxItem(__AuthenticationMethod_JComboBox, AuthenticationMethod,JGUIUtil.NONE, null, null ) ) {
 			__AuthenticationMethod_JComboBox.select ( AuthenticationMethod );
 		}
@@ -1574,6 +1692,21 @@ private void refresh () {
 				"ListFolders parameter \"" + ListFolders + "\".  Select a value or Cancel." );
 			}
 		}
+		if ( JGUIUtil.isSimpleJComboBoxItem(__ListShared_JComboBox, ListShared,JGUIUtil.NONE, null, null ) ) {
+			__ListShared_JComboBox.select ( ListShared );
+		}
+		else {
+            if ( (ListShared == null) ||	ListShared.equals("") ) {
+				// New command...select the default.
+				__ListShared_JComboBox.select ( 0 );
+			}
+			else {
+				// Bad user command.
+				Message.printWarning ( 1, routine,
+				"Existing command references an invalid\n"+
+				"ListShared parameter \"" + ListShared + "\".  Select a value or Cancel." );
+			}
+		}
 		if ( JGUIUtil.isSimpleJComboBoxItem(__ListTrashed_JComboBox, ListTrashed,JGUIUtil.NONE, null, null ) ) {
 			__ListTrashed_JComboBox.select ( ListTrashed );
 		}
@@ -1589,11 +1722,8 @@ private void refresh () {
 				"ListTrashed parameter \"" + ListTrashed + "\".  Select a value or Cancel." );
 			}
 		}
-        if ( MaxKeys != null ) {
-            __MaxKeys_JTextField.setText ( MaxKeys );
-        }
-        if ( MaxObjects != null ) {
-            __MaxObjects_JTextField.setText ( MaxObjects );
+        if ( ListMax != null ) {
+            __ListMax_JTextField.setText ( ListMax );
         }
         if ( ListCountProperty != null ) {
             __ListCountProperty_JTextField.setText ( ListCountProperty );
@@ -1666,6 +1796,7 @@ private void refresh () {
 	// Regardless, reset the command from the fields.
 	// This is only  visible information that has not been committed in the command.
 	// General.
+	SessionID = __SessionID_JTextField.getText().trim();
 	AuthenticationMethod = __AuthenticationMethod_JComboBox.getSelected();
 	GoogleDriveCommand = __GoogleDriveCommand_JComboBox.getSelected();
 	/*
@@ -1696,9 +1827,9 @@ private void refresh () {
 	ListRegEx = __ListRegEx_JTextField.getText().trim();
 	ListFiles = __ListFiles_JComboBox.getSelected();
 	ListFolders = __ListFolders_JComboBox.getSelected();
+	ListShared = __ListShared_JComboBox.getSelected();
 	ListTrashed = __ListTrashed_JComboBox.getSelected();
-	MaxKeys = __MaxKeys_JTextField.getText().trim();
-	MaxObjects = __MaxObjects_JTextField.getText().trim();
+	ListMax = __ListMax_JTextField.getText().trim();
 	ListCountProperty = __ListCountProperty_JTextField.getText().trim();
 	/*
 	// Upload.
@@ -1712,6 +1843,7 @@ private void refresh () {
 	//IfInputNotFound = __IfInputNotFound_JComboBox.getSelected();
     // General.
 	PropList props = new PropList ( __command.getCommandName() );
+	props.add ( "SessionID=" + SessionID );
 	props.add ( "AuthenticationMethod=" + AuthenticationMethod );
 	props.add ( "GoogleDriveCommand=" + GoogleDriveCommand );
 	// Copy.
@@ -1735,9 +1867,9 @@ private void refresh () {
 	props.add ( "ListRegEx=" + ListRegEx );
 	props.add ( "ListFiles=" + ListFiles );
 	props.add ( "ListFolders=" + ListFolders );
+	props.add ( "ListShared=" + ListShared );
 	props.add ( "ListTrashed=" + ListTrashed );
-	props.add ( "MaxKeys=" + MaxKeys );
-	props.add ( "MaxObjects=" + MaxObjects );
+	props.add ( "ListMax=" + ListMax );
 	props.add ( "ListCountProperty=" + ListCountProperty );
 	// Upload.
 	props.add ( "UploadFolders=" + UploadFolders );

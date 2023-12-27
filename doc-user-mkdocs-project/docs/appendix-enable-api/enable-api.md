@@ -24,13 +24,31 @@ The TSTool Google Drive plugin is developed and tested on Windows but can also b
 Google Drive is available if a plan has been purchased from Google, for example Google Workspace.
 
 *   See the [Google Drive download page](https://www.google.com/drive/download/).
-*   Desktop Google drive does not need to be installed,
+*   Desktop Google Drive does not need to be installed,
     although it can simplify troubleshooting.
 
 Once installed, login to Google Drive, which typically maps drive `G:` on Windows.
 
 The online Google Drive can also be accessed,
 for example see the grid tool in the upper right of Google Mail and Calendar web pages.
+
+It is generally desirable to control the API's access,
+for example to restrict access to only allow reading files,
+or to allow read and write only to specific folder(s).
+The granularity of access control is handled via credentials as follows:
+
+*   Use an API project (top-level granularity):
+    +   if using OAuth, create a client ID with specific scope(s) to control file access
+        (the granularity is implementd at the client ID level)
+    +   if using a service account and API key,
+        create a separate service account and define IAM conditions to control file access
+        (the granularity is implemented at the service account level)
+
+The TSTool [`GoogleDrive`](../command-ref/GoogleDrive/GoogleDrive.md) command uses a "session ID"
+specified with the `SessionId` command parameter,
+which allows for granularity when configuring credentials.
+For example, save the credentials from one of the above approaches to a file and
+use the `SessionId` to match the file.
 
 ## Enable API ##
 
@@ -59,7 +77,7 @@ An internal application is suitable for internal organization use.
 *   Because TSTool is written in Java,
     see the [Java quickstart / Configure the OAuth consent screen](https://developers.google.com/drive/api/quickstart/java) documentation.
 
-Click the ***Go to OAuth consent screen*** button.
+Click the [***Go to OAuth consent screen***](https://console.cloud.google.com/apis/credentials/consent) button.
 
 Then select ***Internal*** as shown below.
 
@@ -139,13 +157,17 @@ Press ***SAVE AND CONTINUE***.
 
 The previous section enabled the API.
 It is also necessary to authorize credentials for a desktop application (TSTool with Google Drive plugin).
-The application can be authorized in several ways.
+The application can be authorized in several ways.  See:
+
+*   [Choose the best way to use and authenticate service accounts on Google Cloud](https://cloud.google.com/blog/products/identity-security/how-to-authenticate-service-accounts-to-help-keep-applications-secure)
 
 ### Using OAuth ###
 
-This approach results in an interactive authentication at runtime,
-typically via a web browser.
-Consequently, it is not suitable for processes that need to run unattended (batch or "headless").
+This approach results in an interactive authentication at runtime, typically via a web browser.
+Consequently, it may not be suitable for processes that need to run unattended (batch or "headless").
+The interactive approval is requested each time that the credentials expire.
+Consequently, it may be possible to interactively approve the access ("Application X wants to access Google Drive...") once
+and then run in batch mode with the same OAuth credentials on the device.
 
 *   Because TSTool is written in Java,
     see the [Java quickstart / Configure the OAuth consent screen](https://developers.google.com/drive/api/quickstart/java) documentation.
@@ -162,9 +184,11 @@ Consequently, it is not suitable for processes that need to run unattended (batc
     </p>**
 5.  Click ***Create***. The OAuth client created screen appears, showing your new Client ID and Client secret.
 6.  Click ***OK***. The newly created credential appears under OAuth 2.0 Client IDs.
-    Save the downloaded JSON file as credentials.json, and move the file to your working directory.
-    For example, save in `C:/Users/user/AppData/Local/TSTool/GoogleDrive/credentials.json`,
+    Save the downloaded JSON file for the desktop application.
+    For example, save in `C:/Users/user/AppData/Local/TSTool/GoogleDrive/oauth2-credentials-xxxxx.json`,
     which is a folder that is only visible to the specific user.
+    Specify `xxxxx` as a name that matches the OAuth client ID and will be specified as the
+    TSTool [`GoogleDrive`](../command-ref/GoogleDrive/GoogleDrive.md) command `SessionId` parameter.
 
 The configuration that was created above can be reviewed and edited from the Google Cloud console.
 
@@ -173,9 +197,21 @@ The configuration that was created above can be reviewed and edited from the Goo
 A service account can be used to allow for unattended execution of software,
 for example automated processes that run on a schedule.
 Each service account must have an email account,
-which is used for identification.
+which is used for identification, typically automatically assigned during the configuration, as described below.
 
-In the Google Cloud Console ***API / Service Details / Google Drive API*** web page,
+**Important:  A service account is treated as a separate user.
+Therefore, in order for the service account to access files,
+the files (or folders) must be shared with the service account by
+sharing specific items or use a shared drive that the service account can access.
+The service account email can be used when sharing.**
+
+The following instructions were created using multiple resources.
+The Google Cloud Console views may vary depending on the the sequence of pages that are used.
+
+In the [Google Cloud Console](https://console.cloud.google.com/apis/dashboard),
+select ***Enable APIS AND SERVICES*** and then ***Google Workspace*** and then **Google Drive API***.
+
+***API / Service Details / Google Drive API*** web page,
 click on ***CREATE CREDENTIALS / Service Account***.
 
 Create a service account and specify the ***Service account details***.
@@ -215,4 +251,6 @@ Next, generate the service account key JSON:
 4.  Choose the JSON key type and click ***Create***.
     This will download a JSON file containing the credentials for the service account.
 5.  Move the file to the following location, which is the default for the TSTool Google Drive plugin:
-    *   Windows:  `%APPDATALOCAL%\TSTool\GoogleDrive\api-key.json`
+    *   Windows:  `%APPDATALOCAL%\TSTool\GoogleDrive\api-key-xxxxx.json`
+        (where `xxxxx` is consistent with the service account name and will be specified using the
+        TSTool [`GoogleDrive`](../command-ref/GoogleDrive/GoogleDrive.md) command `SessionId` parameter).

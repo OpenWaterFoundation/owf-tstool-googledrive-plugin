@@ -192,8 +192,12 @@ public class GoogleDriveToolkit {
             // Search for the folder by name in the parent folder:
         	// - first time through will list 'root', then sub-folders
         	// - only match the folder name
+        	// The following works with the OAuth authentication.
             String q = "name='" + folderName + "' and '" + currentFolderId + "' in parents";
+        	// Try getting the files in the root folder.
+            //String q = "'" + currentFolderId + "' in parents";
             Message.printStatus(2, routine, "Getting files using q=\"" + q + "\"");
+            // Only the file ID is needed.
             FileList result = driveService.files().list()
                 .setQ(q)
                 .setFields("files(id)")
@@ -207,7 +211,12 @@ public class GoogleDriveToolkit {
             }
             else {
                 // Folder not found, return null.
-                Message.printStatus(2, routine, "Folder not found. Returning null.");
+            	if ( result.getFiles() == null ) {
+            		Message.printStatus(2, routine, "getFiles() returned null. Returning null.");
+            	}
+            	else if ( result.getFiles().isEmpty() ) {
+            		Message.printStatus(2, routine, "getFiles() returned empty list. Returning null.");
+            	}
                 return null;
             }
         }
