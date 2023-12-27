@@ -30,7 +30,8 @@ Google Drive commands, as enumeration to simplify code.
 */
 public enum GoogleDriveAuthenticationMethodType {
 	/**
-	OAuth.
+	OAuth:
+	- Google Drive documentation uses "OAuth" not "OAuth2" so omit the number from the choice.
 	*/
 	OAUTH ( "OAuth", "OAuth 2" ),
 

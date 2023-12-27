@@ -23,8 +23,11 @@ NoticeEnd */
 package org.openwaterfoundation.tstool.plugin.googledrive.commands;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -97,6 +100,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	Data members used for parameter values.
 	*/
 	protected final String _False = "False";
+	protected final String _Only = "Only";
 	protected final String _True = "True";
 
 	/**
@@ -148,6 +152,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	*/
 	public void checkCommandParameters ( PropList parameters, String command_tag, int warning_level )
 	throws InvalidCommandParameterException {
+		String SessionID = parameters.getValue ( "SessionID" );
 		String AuthenticationMethod = parameters.getValue ( "AuthenticationMethod" );
 		String GoogleDriveCommand = parameters.getValue ( "GoogleDriveCommand" );
     	String CopyFiles = parameters.getValue ( "CopyFiles" );
@@ -161,9 +166,9 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	String ListFolderPath = parameters.getValue ( "ListFolderPath" );
     	String ListFiles = parameters.getValue ( "ListFiles" );
     	String ListFolders = parameters.getValue ( "ListFolders" );
+    	String ListShared = parameters.getValue ( "ListShared" );
     	String ListTrashed = parameters.getValue ( "ListTrashed" );
-    	//String MaxKeys = parameters.getValue ( "MaxKeys" );
-    	//String MaxObjects = parameters.getValue ( "MaxObjects" );
+    	String ListMax = parameters.getValue ( "ListMax" );
     	String UploadFiles = parameters.getValue ( "UploadFiles" );
     	String UploadFolders = parameters.getValue ( "UploadFolders" );
     	// Output
@@ -177,9 +182,17 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		CommandStatus status = getCommandStatus();
 		status.clearLog(CommandPhaseType.INITIALIZATION);
 
+		if ( (SessionID == null) || SessionID.isEmpty() ) {
+			message = "The session ID must be specified to locate credentials.";
+			warning += "\n" + message;
+			status.addToLog(CommandPhaseType.INITIALIZATION,
+				new CommandLogRecord(CommandStatusType.FAILURE,
+					message, "Specify a session ID ."));
+		}
+
+		GoogleDriveAuthenticationMethodType authenticationMethod = null;
 		if ( (AuthenticationMethod != null) && !AuthenticationMethod.isEmpty() ) {
-			GoogleDriveAuthenticationMethodType authenticationMethod =
-				GoogleDriveAuthenticationMethodType.valueOfIgnoreCase(AuthenticationMethod);
+			authenticationMethod = GoogleDriveAuthenticationMethodType.valueOfIgnoreCase(AuthenticationMethod);
 			if ( authenticationMethod == null ) {
 				message = "The Google Drive authentication method (" + AuthenticationMethod + ") is invalid.";
 				warning += "\n" + message;
@@ -188,6 +201,41 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 						message, "Specify a valid authentication method."));
 			}
 		}
+		
+		// Try to open a session to see if the credentials file is found.
+		/*
+		GoogleDriveSession googleDriveSession = null;
+		try {
+			googleDriveSession = new GoogleDriveSession ( SessionID, authenticationMethod );
+		}
+		catch ( FileNotFoundException fnfe ) {
+			if ( googleDriveSession != null ) {
+				message = "The credentials file was not found: " + googleDriveSession.getCredentialsFilePath() ;
+				warning += "\n" + message;
+				status.addToLog(CommandPhaseType.INITIALIZATION,
+					new CommandLogRecord(CommandStatusType.FAILURE,
+						message, "Specify the a valid session ID and authentication method."));
+			}
+		}
+		catch ( GeneralSecurityException gse ) {
+			if ( googleDriveSession != null ) {
+				message = "GeneralSecurityException: The credentials are not valid: " + googleDriveSession.getCredentialsFilePath() ;
+				warning += "\n" + message;
+				status.addToLog(CommandPhaseType.INITIALIZATION,
+					new CommandLogRecord(CommandStatusType.FAILURE,
+						message, "Specify the a valid session ID and authentication method."));
+			}
+		}
+		catch ( IOException ioe ) {
+			if ( googleDriveSession != null ) {
+				message = "Error reading credentials file: " + googleDriveSession.getCredentialsFilePath() ;
+				warning += "\n" + message;
+				status.addToLog(CommandPhaseType.INITIALIZATION,
+					new CommandLogRecord(CommandStatusType.FAILURE,
+						message, "Specify the a valid session ID and authentication method."));
+			}
+		}
+		*/
 
 		// The existence of the file to append is not checked during initialization
 		// because files may be created dynamically at runtime.
@@ -260,6 +308,17 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			}
 		}
 
+		if ( (ListShared != null) && !ListShared.equals("") ) {
+			if ( !ListShared.equalsIgnoreCase(_False) && !ListShared.equalsIgnoreCase(_True) &&
+				!ListShared.equalsIgnoreCase(_Only) ) {
+				message = "The ListShared parameter \"" + ListShared + "\" is invalid.";
+				warning += "\n" + message;
+				status.addToLog(CommandPhaseType.INITIALIZATION,
+					new CommandLogRecord(CommandStatusType.FAILURE,
+						message, "Specify the parameter as " + _False + " (default), " + _Only + ", or " + _True + "."));
+			}
+		}
+
 		if ( (ListTrashed != null) && !ListTrashed.equals("") ) {
 			if ( !ListTrashed.equalsIgnoreCase(_False) && !ListTrashed.equalsIgnoreCase(_True) ) {
 				message = "The ListTrashed parameter \"" + ListTrashed + "\" is invalid.";
@@ -270,17 +329,8 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			}
 		}
 
-		/*
-		if ( (MaxKeys != null) && !MaxKeys.isEmpty() && !StringUtil.isInteger(MaxKeys) ) {
-			message = "The maximum keys (" + MaxKeys + ") is invalid.";
-			warning += "\n" + message;
-			status.addToLog(CommandPhaseType.INITIALIZATION,
-				new CommandLogRecord(CommandStatusType.FAILURE,
-					message, "Specify an integer 1 to " + this._MaxKeys + "."));
-		}
-
-		if ( (MaxObjects != null) && !MaxObjects.isEmpty() && !StringUtil.isInteger(MaxObjects) ) {
-			message = "The maximum objects (" + MaxObjects + ") is invalid.";
+		if ( (ListMax != null) && !ListMax.isEmpty() && !StringUtil.isInteger(ListMax) ) {
+			message = "The list maximum (" + ListMax + ") is invalid.";
 			warning += "\n" + message;
 			status.addToLog(CommandPhaseType.INITIALIZATION,
 				new CommandLogRecord(CommandStatusType.FAILURE,
@@ -298,6 +348,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		}
 
 		// Put ListObjectsScope at the end so combinations of parameters can be checked.
+		/*
 		if ( (ListObjectsScope != null) && !ListObjectsScope.equals("") ) {
 			if ( !ListObjectsScope.equalsIgnoreCase(_All) && !ListObjectsScope.equalsIgnoreCase(_Folder) && !ListObjectsScope.equalsIgnoreCase(_Root)) {
 				message = "The ListObjectsScope parameter \"" + ListObjectsScope + "\" is invalid.";
@@ -506,6 +557,13 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 					new CommandLogRecord(CommandStatusType.WARNING,
 						message, "Remove the ListFolders parameter."));
 			}
+			if ( (ListShared != null) && !ListShared.isEmpty() ) {
+				message = "The ListShared parameter is not used when downloading objects.";
+				warning += "\n" + message;
+				status.addToLog(CommandPhaseType.INITIALIZATION,
+					new CommandLogRecord(CommandStatusType.WARNING,
+						message, "Remove the ListShared parameter."));
+			}
 			if ( (ListTrashed != null) && !ListTrashed.isEmpty() ) {
 				message = "The ListTrashed parameter is not used when downloading objects.";
 				warning += "\n" + message;
@@ -648,10 +706,12 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 						message, "Specify the output table ID and or file name."));
 			}
 		}
+		Message.printStatus(2, "", "OutputTableID=\"" + OutputTableID + "\" OutputFile=\"" + OutputFile + "\"");
 
 		// Check for invalid parameters.
-		List<String> validList = new ArrayList<>(37);
+		List<String> validList = new ArrayList<>(29);
 		// General.
+		validList.add ( "SessionID" );
 		validList.add ( "AuthenticationMethod" );
 		validList.add ( "GoogleDriveCommand" );
 		// Copy.
@@ -675,6 +735,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		validList.add ( "ListRegEx" );
 		validList.add ( "ListFiles" );
 		validList.add ( "ListFolders" );
+		validList.add ( "ListShared" );
 		validList.add ( "ListTrashed" );
 		validList.add ( "MaxKeys" );
 		validList.add ( "MaxObjects" );
@@ -884,8 +945,10 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	private int doGoogleDriveList (
 		CommandProcessor processor,
 		GoogleDriveSession googleDriveSession,
-		String listScope, String listFolderPath, boolean listFiles, boolean listFolders, boolean listTrashed, String regex,
+		String listScope, String listFolderPath, boolean listFiles, boolean listFolders, boolean listShared, boolean listTrashed,
+		String regex,
 		DataTable table, int listCreationTimeCol, int listIdCol, int listLastModifiedTimeCol, int listLastModifiedUserCol,
+		int listMax,
 		int listNameCol, int listOriginalFilenameCol, int listOwnedByMeCol, int listOwnerCol,
 		int listParentFolderCol, int listParentFolderIdCol,
 		int listSharedCol, int listSharedWithMeTimeCol, int listSharingUserCol,
@@ -902,41 +965,64 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
    		// Folder to list:
    		// - convert the G: drive path to a folder ID
    		// - do not include "My Drive" in the path
-   		String folderPath = listFolderPath;
-   		String folderId = null;
-   		try {
-   			folderId = GoogleDriveToolkit.getInstance().getFolderIdForPath ( googleDriveSession.getService(), folderPath );
-   		}
-   		catch ( Exception e ) {
-   			message = "Error converting folder \"" + folderPath + " to Google Drive ID.";
-		 	Message.printWarning ( warningLevel,
-		 		MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
-		 	Message.printWarning ( 3, routine, e );
-		 	status.addToLog(CommandPhaseType.RUN,
-		 		new CommandLogRecord(CommandStatusType.FAILURE,
-			 			message, "See the log file for details."));
-		 	throw new CommandException ( message );
-   		}
-   		if ( folderId == null ) {
-   			message = "Unable to convert folder \"" + folderPath + " to Google Drive ID - does not exist?";
-		 	Message.printWarning ( warningLevel,
-		 		MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
-		 	status.addToLog(CommandPhaseType.RUN,
-		 		new CommandLogRecord(CommandStatusType.FAILURE,
-		 			message, "See the log file for details."));
-		 	throw new CommandException ( message );
-   		}
-   		// List files in a folder:
-   		// = 'folder' is the folder to list and 'in parents' means to list the files in that folder
-   		// - default is to list trashed files and folders so always specify how handled
-   		// - trashed=true will list ONLY trashed files and folders, false will list only NOT trashed files and folders
-   		// - trashed objects are listed in the Google Drive recycling bin
-   		StringBuilder q = new StringBuilder("'" + folderId + "' in parents and trashed=" + listTrashed );
+		
+		StringBuilder q = new StringBuilder();
+		if ( listFolderPath.equals("/") ) {
+			// List the root folder.
+			if ( listShared ) {
+				// Shared files have to be listed independent of parent folder.
+				q = new StringBuilder("sharedWithMe=" + listShared );
+			}
+			else {
+				q = new StringBuilder("'root' in parents and trashed=" + listTrashed );
+			}
+		}
+		else {
+			// List a specific folder.
+			String folderPath = listFolderPath;
+			String folderId = null;
+			try {
+				folderId = GoogleDriveToolkit.getInstance().getFolderIdForPath ( googleDriveSession.getService(), folderPath );
+			}
+			catch ( Exception e ) {
+				message = "Error converting folder \"" + folderPath + " to Google Drive ID.";
+				Message.printWarning ( warningLevel,
+					MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
+				Message.printWarning ( 3, routine, e );
+				status.addToLog(CommandPhaseType.RUN,
+					new CommandLogRecord(CommandStatusType.FAILURE,
+						message, "See the log file for details."));
+				throw new CommandException ( message );
+			}
+			if ( folderId == null ) {
+				message = "Unable to convert folder \"" + folderPath + " to Google Drive ID - does not exist?";
+				Message.printWarning ( warningLevel,
+					MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
+				status.addToLog(CommandPhaseType.RUN,
+					new CommandLogRecord(CommandStatusType.FAILURE,
+							message, "See the log file for details."));
+				throw new CommandException ( message );
+			}
+			// List files in a folder:
+			// - 'folder' is the folder to list and 'in parents' means to list the files in that folder
+			// - default is to list trashed files and folders so always specify how handled
+			// - trashed=true will list ONLY trashed files and folders, false will list only NOT trashed files and folders
+			// - trashed objects are listed in the Google Drive recycling bin
+			if ( listShared ) {
+				// Shared files have to be listed independent of parent folder.
+				q = new StringBuilder("sharedWithMe=" + listShared);
+			}
+			else {
+				q = new StringBuilder("'" + folderId + "' in parents and trashed=" + listTrashed );
+			}
+		}
 
    		// Print the names and IDs for up to 10 files.
    		FileList result = null;
+   		Drive.Files.List request = null;
    		try {
-   			result = googleDriveSession.getService()
+   			// Do the initial request.
+   			request = googleDriveSession.getService()
    				// Request to execute.
    				.files()
    				// Holds the parameters for the request.
@@ -951,8 +1037,10 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
    				// Set the folder to list:
    				// See: https://developers.google.com/drive/api/guides/search-files
    				.setQ(q.toString())
-   				// Page size for returned files.
-       			.setPageSize(10)
+   				// Page size for returned files:
+   				// - currently use the maximum of 1000
+   				// - TODO smalers 2023-12-27 need to implement paging
+       			//.setPageSize(1000)
        			// Which fields to include in the response:
        			// - if not specified nulls will be returned by the "get" methods below
        			// - see https://developers.google.com/drive/api/guides/ref-search-terms#drive_properties
@@ -962,9 +1050,9 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
        			// - when using files(), need to do a better job including only file fields in the parentheses
        			//.setFields("nextPageToken, files(createdTime, description, id, mimeType, modifiedTime, name, ownedByMe, owners, parents, permissions, shared, sharingUser, size, trashed, trashedTime)")
        			//.setFields("nextPageToken, createdTime, description, id, mimeType, modifiedTime, name, ownedByMe, owners, parents, permissions, shared, sharingUser, size, trashed, trashedTime")
-       			.setFields("*")
-       			// Invoke the remote operation.
-       			.execute();
+       			.setFields("*");
+			// Invoke the remote operation.
+   			result = request.execute();
    		}
    		catch ( Exception e ) {
    			message = "Error listing Google Drive files.";
@@ -976,154 +1064,187 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		 			message, "See the log file for details."));
 		 	throw new CommandException ( message );
    		}
+   		
+   		// Process the result files and if necessary make additional requests.
 		int fileCount = 0;
 		int folderCount = 0;
 		int objectCount = 0;
-   		List<com.google.api.services.drive.model.File> files = result.getFiles();
-   		if ( (files == null) || files.isEmpty() ) {
-   			Message.printStatus(2, routine, "No files found.");
-   		}
-   		else {
-   			// Have files and folders to process.
-   			// Do not allow duplicates in the output.
-   			boolean allowDuplicates = false;
-   			TableRecord rec = null;
-   			for ( com.google.api.services.drive.model.File file : files ) {
-   				//Message.printStatus(2, routine, String.format("%s (%s)\n", file.getName(), file.getId()));
-   				// Output to table:
-   				// - key is the full path to the file
-   				// - have size, owner and modification time properties
-				if ( regex != null ) {
-					// Want to apply a regular expression to the name.
-					if ( !file.getName().matches(regex) ) {
-						if ( Message.isDebugOn ) {
-							Message.printStatus(2, routine, "Does not match regular expression - skipping: " + file.getName());
+		int pageCount = 0;
+   		while ( (result.getFiles() != null) && (result.getFiles().size() > 0) ) {
+   			++pageCount;
+   			List<com.google.api.services.drive.model.File> files = result.getFiles();
+   			if ( (files == null) || files.isEmpty() ) {
+   				Message.printStatus(2, routine, "No more files found (page=" + pageCount + ").");
+   			}
+   			else {
+   				// Have files and folders to process.
+   				Message.printStatus(2, routine, "Processing " + files.size() + " files (page=" + pageCount + ").");
+   				// Do not allow duplicates in the output.
+   				boolean allowDuplicates = false;
+   				TableRecord rec = null;
+   				for ( com.google.api.services.drive.model.File file : files ) {
+   					//Message.printStatus(2, routine, String.format("%s (%s)\n", file.getName(), file.getId()));
+   					// Output to table:
+   					// - key is the full path to the file
+   					// - have size, owner and modification time properties
+					if ( regex != null ) {
+						// Want to apply a regular expression to the name.
+						if ( !file.getName().matches(regex) ) {
+							if ( Message.isDebugOn ) {
+								Message.printStatus(2, routine, "Does not match regular expression - skipping: " + file.getName());
+							}
+							continue;
 						}
-						continue;
 					}
-				}
-				String type = null;
-				if ( file.getMimeType().equals("application/vnd.google-apps.folder") ) {
-					if ( !listFolders ) {
-						// Is a folder and don't want folders so continue.
-						if ( Message.isDebugOn ) {
-							Message.printStatus(2, routine, "Is a folder and ignoring folder - skipping: " + file.getName());
+					String type = null;
+					if ( file.getMimeType().equals("application/vnd.google-apps.folder") ) {
+						if ( !listFolders ) {
+							// Is a folder and don't want folders so continue.
+							if ( Message.isDebugOn ) {
+								Message.printStatus(2, routine, "Is a folder and ignoring folder - skipping: " + file.getName());
+							}
+							continue;
 						}
-						continue;
-					}
-					else {
-						// Will include the folder in the listing below.
-						type = "folder";
-						++folderCount;
-						++objectCount;
-					}
-				}
-				else if ( !file.getMimeType().equals("application/vnd.google-apps.folder") ) {
-					if ( !listFiles ) {
-						// Is a file and don't files want so continue.
-						if ( Message.isDebugOn ) {
-							Message.printStatus(2, routine, "Is a file and ignoring files - skipping: " + file.getName());
+						else {
+							// Will include the folder in the listing below.
+							type = "folder";
+							++folderCount;
+							++objectCount;
 						}
-						continue;
 					}
-					else {
-						// Will include the file in the listing below.
-						type = "file";
-						++fileCount;
-						++objectCount;
-					}
-				}
-				// If here, the object should be listed in the output table.
- 				if ( table != null ) {
-   					rec = null;
-   					if ( !allowDuplicates ) {
-   						// Try to match the object key, which is the unique identifier.
-   						rec = table.getRecord ( listIdCol, file.getId() );
-   					}
-   					if ( rec == null ) {
-   						// Create a new record.
-   						rec = table.addRecord(table.emptyRecord());
-   					}
-   					// Set the data in the record:
-   					// - list in the order of the table
-   					rec.setFieldValue(listIdCol,file.getId());
-					rec.setFieldValue(listNameCol,file.getName());
-					String parentPath = "";
-					String parentId = "";
-					String parentIdPrev = ""; // Use to increase performance.
-					List<String> parents = file.getParents();
-					if ( (parents != null) && (parents.size() > 0) ) {
-						// Show the parent folder:
-						// - the primary parent is the first one and others are like symbolic links
-						// - the parents are the ID, not a nice name
-						parentId = parents.get(0);
-						if ( !parentId.equals(parentIdPrev) ) {
-							// Also convert the parent ID to a path:
-							// - only need to do this if the parent ID has changed
-							// - most of the time a single folder is being listed
-							Drive service = googleDriveSession.getService();
-							parentPath = GoogleDriveToolkit.getInstance().getParentFolderPathFromFolderId(service, parentId);
+					else if ( !file.getMimeType().equals("application/vnd.google-apps.folder") ) {
+						if ( !listFiles ) {
+							// Is a file and don't files want so continue.
+							if ( Message.isDebugOn ) {
+								Message.printStatus(2, routine, "Is a file and ignoring files - skipping: " + file.getName());
+							}
+							continue;
 						}
-						parentIdPrev = parentId;
+						else {
+							// Will include the file in the listing below.
+							type = "file";
+							++fileCount;
+							++objectCount;
+						}
 					}
-					rec.setFieldValue(listParentFolderCol,parentPath.toString());
-					rec.setFieldValue(listParentFolderIdCol,parentId);
-   					rec.setFieldValue(listTypeCol,type);
-   					rec.setFieldValue(listSizeCol,file.getSize());
-   					List<User> users = file.getOwners();
-   					// Can have multiple owners.
-   					StringBuilder userCsv = new StringBuilder();
-   					if ( users != null ) {
-   						for ( User user : users ) {
-   							if ( userCsv.length() > 0 ) {
-   								userCsv.append(",");
-   							}
-   							userCsv.append(user.getDisplayName());
+					// If here, the object should be listed in the output table.
+ 					if ( table != null ) {
+   						rec = null;
+   						if ( !allowDuplicates ) {
+   							// Try to match the object key, which is the unique identifier.
+   							rec = table.getRecord ( listIdCol, file.getId() );
    						}
+   						if ( rec == null ) {
+   							// Create a new record.
+   							rec = table.addRecord(table.emptyRecord());
+   						}
+   						// Set the data in the record:
+   						// - list in the order of the table
+   						rec.setFieldValue(listIdCol,file.getId());
+						rec.setFieldValue(listNameCol,file.getName());
+						String parentPath = "";
+						String parentId = "";
+						String parentIdPrev = ""; // Use to increase performance.
+						List<String> parents = file.getParents();
+						if ( (parents != null) && (parents.size() > 0) ) {
+							// Show the parent folder:
+							// - the primary parent is the first one and others are like symbolic links
+							// - the parents are the ID, not a nice name
+							parentId = parents.get(0);
+							if ( !parentId.equals(parentIdPrev) ) {
+								// Also convert the parent ID to a path:
+								// - only need to do this if the parent ID has changed
+								// - most of the time a single folder is being listed
+								Drive service = googleDriveSession.getService();
+								parentPath = GoogleDriveToolkit.getInstance().getParentFolderPathFromFolderId(service, parentId);
+							}
+							parentIdPrev = parentId;
+						}
+						rec.setFieldValue(listParentFolderCol,parentPath.toString());
+						rec.setFieldValue(listParentFolderIdCol,parentId);
+   						rec.setFieldValue(listTypeCol,type);
+   						rec.setFieldValue(listSizeCol,file.getSize());
+   						List<User> users = file.getOwners();
+   						// Can have multiple owners.
+   						StringBuilder userCsv = new StringBuilder();
+   						if ( users != null ) {
+   							for ( User user : users ) {
+   								if ( userCsv.length() > 0 ) {
+   									userCsv.append(",");
+   								}
+   								userCsv.append(user.getDisplayName());
+   							}
+   						}
+   						rec.setFieldValue(listOwnerCol, userCsv.toString());
+   						rec.setFieldValue(listOwnedByMeCol, file.getOwnedByMe());
+   						// Google API has its own DateTime in the API so convert to TSTool type for consistency.
+   						com.google.api.client.util.DateTime fileCreationTime = file.getCreatedTime();
+   						if ( fileCreationTime != null ) {
+   							DateTime creationTime = DateTime.parse(fileCreationTime.toString());
+   							rec.setFieldValue(listCreationTimeCol, creationTime);
+   						}
+   						rec.setFieldValue(listSharedCol, file.getShared());
+   						User sharingUser = file.getSharingUser();
+   						if ( sharingUser != null ) {
+   							rec.setFieldValue(listSharingUserCol, sharingUser.getDisplayName());
+   						}
+   						// Google API has its own DateTime in the API so convert to TSTool type for consistency.
+   						com.google.api.client.util.DateTime fileSharedWithMeTime = file.getSharedWithMeTime();
+   						if ( fileSharedWithMeTime != null ) {
+   							DateTime sharedWithMeTime = DateTime.parse(fileSharedWithMeTime.toString());
+   							rec.setFieldValue(listSharedWithMeTimeCol, sharedWithMeTime);
+   						}
+   						// Google API has its own DateTime in the API so convert to TSTool type for consistency.
+   						com.google.api.client.util.DateTime fileModifiedTime = file.getModifiedTime();
+   						if ( fileModifiedTime != null ) {
+   							DateTime modificationTime = DateTime.parse(fileModifiedTime.toString());
+   							rec.setFieldValue(listLastModifiedTimeCol, modificationTime);
+   						}
+   						User lastModifyingUser = file.getLastModifyingUser();
+   						if ( lastModifyingUser != null ) {
+   							rec.setFieldValue(listLastModifiedUserCol, file.getLastModifyingUser().getDisplayName());
+   						}
+   						rec.setFieldValue(listTrashedCol, file.getTrashed());
+   						User trashingUser = file.getTrashingUser();
+   						if ( trashingUser != null ) {
+   							rec.setFieldValue(listTrashedUserCol, trashingUser.getDisplayName());
+   						}
+   						// Google API has its own DateTime in the API so convert to TSTool type for consistency.
+   						com.google.api.client.util.DateTime fileTrashedTime = file.getTrashedTime();
+   						if ( fileTrashedTime != null ) {
+   							DateTime trashedTime = DateTime.parse(fileTrashedTime.toString());
+   							rec.setFieldValue(listTrashedTimeCol, trashedTime);
+   						}
+   						rec.setFieldValue(listOriginalFilenameCol, file.getOriginalFilename());
+   						rec.setFieldValue(listWebViewLinkCol, file.getWebViewLink());
    					}
-   					rec.setFieldValue(listOwnerCol, userCsv.toString());
-   					rec.setFieldValue(listOwnedByMeCol, file.getOwnedByMe());
-   					// Google API has its own DateTime in the API so convert to TSTool type for consistency.
-   					com.google.api.client.util.DateTime fileCreationTime = file.getCreatedTime();
-   					if ( fileCreationTime != null ) {
-   						DateTime creationTime = DateTime.parse(fileCreationTime.toString());
-   						rec.setFieldValue(listCreationTimeCol, creationTime);
-   					}
-   					rec.setFieldValue(listSharedCol, file.getShared());
-   					User sharingUser = file.getSharingUser();
-   					if ( sharingUser != null ) {
-   						rec.setFieldValue(listSharingUserCol, sharingUser.getDisplayName());
-   					}
-   					// Google API has its own DateTime in the API so convert to TSTool type for consistency.
-   					com.google.api.client.util.DateTime fileSharedWithMeTime = file.getSharedWithMeTime();
-   					if ( fileSharedWithMeTime != null ) {
-   						DateTime sharedWithMeTime = DateTime.parse(fileSharedWithMeTime.toString());
-   						rec.setFieldValue(listSharedWithMeTimeCol, sharedWithMeTime);
-   					}
-   					// Google API has its own DateTime in the API so convert to TSTool type for consistency.
-   					com.google.api.client.util.DateTime fileModifiedTime = file.getModifiedTime();
-   					if ( fileModifiedTime != null ) {
-   						DateTime modificationTime = DateTime.parse(fileModifiedTime.toString());
-   						rec.setFieldValue(listLastModifiedTimeCol, modificationTime);
-   					}
-   					User lastModifyingUser = file.getLastModifyingUser();
-   					if ( lastModifyingUser != null ) {
-   						rec.setFieldValue(listLastModifiedUserCol, file.getLastModifyingUser().getDisplayName());
-   					}
-   					rec.setFieldValue(listTrashedCol, file.getTrashed());
-   					User trashingUser = file.getTrashingUser();
-   					if ( trashingUser != null ) {
-   						rec.setFieldValue(listTrashedUserCol, trashingUser.getDisplayName());
-   					}
-   					// Google API has its own DateTime in the API so convert to TSTool type for consistency.
-   					com.google.api.client.util.DateTime fileTrashedTime = file.getTrashedTime();
-   					if ( fileTrashedTime != null ) {
-   						DateTime trashedTime = DateTime.parse(fileTrashedTime.toString());
-   						rec.setFieldValue(listTrashedTimeCol, trashedTime);
-   					}
-   					rec.setFieldValue(listOriginalFilenameCol, file.getOriginalFilename());
-   					rec.setFieldValue(listWebViewLinkCol, file.getWebViewLink());
+ 					
+ 					// Break out of the loop if the object count has been reached.
+ 					if ( (listMax > 0) && (objectCount == listMax) ) {
+ 						break;
+ 					}
    				}
+
+				// Break out of the loop if the object count has been reached.
+				if ( (listMax > 0) && (objectCount == listMax) ) {
+					break;
+				}
+   			}
+
+			// Break out of the loop if the object count has been reached.
+			if ( (listMax > 0) && (objectCount == listMax) ) {
+				break;
+			}
+   		
+   			// Get the next page of results.
+   			String nextPageToken = result.getNextPageToken();
+   			if ( nextPageToken == null ) {
+   				break;
+   			}
+   			else {
+   				//Message.printStatus(2, routine, "Next page token = \"" + nextPageToken + "\"" );
+   				request.setPageToken(nextPageToken);
+   				result = request.execute();
    			}
    		}
 
@@ -1269,6 +1390,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 
 		String GoogleDriveCommand = parameters.getValue ( "GoogleDriveCommand" );
 		GoogleDriveCommandType googleDriveCommand = GoogleDriveCommandType.valueOfIgnoreCase(GoogleDriveCommand);
+		String SessionID = parameters.getValue ( "SessionID" );
 		String AuthenticationMethod = parameters.getValue ( "AuthenticationMethod" );
 		GoogleDriveAuthenticationMethodType authenticationMethod = null;
 		if ( AuthenticationMethod == null ) {
@@ -1763,10 +1885,19 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	  	if ( (ListFolders != null) && ListFolders.equalsIgnoreCase("false") ) {
 			listFolders = false;
 	  	}
+   		String ListShared = parameters.getValue ( "ListShared" );
+	  	if ( (ListShared == null) || ListShared.isEmpty() ) {
+			ListShared = _False; // Default.
+	  	}
    		String ListTrashed = parameters.getValue ( "ListTrashed" );
 	  	boolean listTrashed = false; // Default.
 	  	if ( (ListTrashed != null) && ListTrashed.equalsIgnoreCase("true") ) {
 			listTrashed = true;
+	  	}
+   		String ListMax = parameters.getValue ( "ListMax" );
+   		int listMax = -1;
+	  	if ( (ListMax != null) && !ListMax.isEmpty() ) {
+			listMax = Integer.parseInt(ListMax);
 	  	}
 	  	String ListCountProperty = parameters.getValue ( "ListCountProperty" );
 	  	if ( commandPhase == CommandPhaseType.RUN ) {
@@ -2137,7 +2268,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 				GoogleDriveSession googleDriveSession = null;
 
 				try {
-					googleDriveSession = new GoogleDriveSession(authenticationMethod);
+					googleDriveSession = new GoogleDriveSession(SessionID, authenticationMethod);
 				}
 				catch ( Exception e ) {
 					message = "Error creating a Google Drive session.";
@@ -2396,20 +2527,49 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	    	}
     	    	*/
    	        	if ( googleDriveCommand == GoogleDriveCommandType.LIST ) {
-   	        		warningCount = doGoogleDriveList (
-   	        			processor,
-    			      	googleDriveSession,
-    			      	ListScope, ListFolderPath, listFiles, listFolders, listTrashed, listRegEx,
-    			      	table,
-    			      	listCreationTimeCol, listIdCol, listLastModifiedTimeCol, listLastModifiedUserCol,
-    			      	listNameCol, listOriginalFilenameCol, listOwnedByMeCol, listOwnerCol,
-    			      	listParentFolderCol, listParentFolderIdCol,
-    			      	listSharedCol, listSharedWithMeTimeCol, listSharingUserCol,
-    			      	listSizeCol,
-    			      	listTrashedCol, listTrashedTimeCol, listTrashedUserCol,
-    			      	listTypeCol, listWebViewLinkCol,
-    			      	ListCountProperty,
-    			      	status, logLevel, warningLevel, warningCount, commandTag );
+   	        		if ( !ListShared.equalsIgnoreCase(_Only) ) {
+   	        			// Get the list of files and folders that is not shared:
+   	        			// - list these before shared files
+   	        			// - the shared files will be queried below and appended
+   	        			// - if "Only" was specified then this list is skipped
+   	        			boolean listShared = false;
+   	        			warningCount = doGoogleDriveList (
+   	        				processor,
+    			      		googleDriveSession,
+    			      		ListScope, ListFolderPath, listFiles, listFolders, listShared, listTrashed, listRegEx,
+    			      		table,
+    			      		listCreationTimeCol, listIdCol,
+    			      		listLastModifiedTimeCol, listLastModifiedUserCol,
+    			      		listMax,
+    			      		listNameCol, listOriginalFilenameCol, listOwnedByMeCol, listOwnerCol,
+    			      		listParentFolderCol, listParentFolderIdCol,
+    			      		listSharedCol, listSharedWithMeTimeCol, listSharingUserCol,
+    			      		listSizeCol,
+    			      		listTrashedCol, listTrashedTimeCol, listTrashedUserCol,
+    			      		listTypeCol, listWebViewLinkCol,
+    			      		ListCountProperty,
+    			      		status, logLevel, warningLevel, warningCount, commandTag );
+   	        		}
+   	        		if ( ListShared.equalsIgnoreCase(_Only) || ListShared.equalsIgnoreCase(_True) ) {
+   	        			// Get the list of shared files and folders:
+   	        			// - will append to the above list
+   	        			boolean listShared = true;
+   	        			warningCount = doGoogleDriveList (
+   	        				processor,
+    			      		googleDriveSession,
+    			      		ListScope, ListFolderPath, listFiles, listFolders, listShared, listTrashed, listRegEx,
+    			      		table,
+    			      		listCreationTimeCol, listIdCol, listLastModifiedTimeCol, listLastModifiedUserCol,
+    			      		listMax,
+    			      		listNameCol, listOriginalFilenameCol, listOwnedByMeCol, listOwnerCol,
+    			      		listParentFolderCol, listParentFolderIdCol,
+    			      		listSharedCol, listSharedWithMeTimeCol, listSharingUserCol,
+    			      		listSizeCol,
+    			      		listTrashedCol, listTrashedTimeCol, listTrashedUserCol,
+    			      		listTypeCol, listWebViewLinkCol,
+    			      		ListCountProperty,
+    			      		status, logLevel, warningLevel, warningCount, commandTag );
+   	        		}
     	    	}
    	        	/*
    	        	else if ( s3Command == AwsS3CommandType.UPLOAD_OBJECTS ) {
@@ -2586,6 +2746,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	public String toString ( PropList parameters ) {
 		String [] parameterOrder = {
 			// General.
+			"SessionID",
 			"AuthenticationMethod",
 			"GoogleDriveCommand",
 			//"Profile",
@@ -2612,9 +2773,9 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			"ListRegEx",
 			"ListFiles",
 			"ListFolders",
+			"ListShared",
 			"ListTrashed",
-			//"MaxKeys",
-			//"MaxObjects",
+			"ListMax",
 			"ListCountProperty",
 			// Upload.
 			//"UploadFolders",
