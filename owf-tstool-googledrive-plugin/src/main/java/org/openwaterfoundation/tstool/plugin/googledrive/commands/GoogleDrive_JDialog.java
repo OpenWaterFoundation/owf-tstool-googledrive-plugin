@@ -122,7 +122,7 @@ private JTextField __ListFolderPath_JTextField = null;
 private JTextField __ListRegEx_JTextField = null;
 private SimpleJComboBox __ListFiles_JComboBox = null;
 private SimpleJComboBox __ListFolders_JComboBox = null;
-private SimpleJComboBox __ListShared_JComboBox = null;
+private SimpleJComboBox __ListSharedWithMe_JComboBox = null;
 private SimpleJComboBox __ListTrashed_JComboBox = null;
 private JTextField __ListMax_JTextField = null;
 private JTextField __ListCountProperty_JTextField = null;
@@ -433,7 +433,7 @@ private void checkInput () {
 	String ListRegEx = __ListRegEx_JTextField.getText().trim();
 	String ListFiles = __ListFiles_JComboBox.getSelected();
 	String ListFolders = __ListFolders_JComboBox.getSelected();
-	String ListShared = __ListShared_JComboBox.getSelected();
+	String ListSharedWithMe = __ListSharedWithMe_JComboBox.getSelected();
 	String ListTrashed = __ListTrashed_JComboBox.getSelected();
 	String ListMax = __ListMax_JTextField.getText().trim();
 	String ListCountProperty = __ListCountProperty_JTextField.getText().trim();
@@ -512,8 +512,8 @@ private void checkInput () {
 	if ( (ListFolders != null) && !ListFolders.isEmpty() ) {
 		props.set ( "ListFolders", ListFolders );
 	}
-	if ( (ListShared != null) && !ListShared.isEmpty() ) {
-		props.set ( "ListShared", ListShared );
+	if ( (ListSharedWithMe != null) && !ListSharedWithMe.isEmpty() ) {
+		props.set ( "ListSharedWithMe", ListSharedWithMe );
 	}
 	if ( (ListTrashed != null) && !ListTrashed.isEmpty() ) {
 		props.set ( "ListTrashed", ListTrashed );
@@ -588,7 +588,7 @@ private void commitEdits () {
 	String ListRegEx = __ListRegEx_JTextField.getText().trim();
 	String ListFiles = __ListFiles_JComboBox.getSelected();
 	String ListFolders = __ListFolders_JComboBox.getSelected();
-	String ListShared = __ListShared_JComboBox.getSelected();
+	String ListSharedWithMe = __ListSharedWithMe_JComboBox.getSelected();
 	String ListTrashed = __ListTrashed_JComboBox.getSelected();
 	String ListMax = __ListMax_JTextField.getText().trim();
 	String ListCountProperty = __ListCountProperty_JTextField.getText().trim();
@@ -625,7 +625,7 @@ private void commitEdits () {
 	__command.setCommandParameter ( "ListRegEx", ListRegEx );
 	__command.setCommandParameter ( "ListFiles", ListFiles );
 	__command.setCommandParameter ( "ListFolders", ListFolders );
-	__command.setCommandParameter ( "ListShared", ListShared );
+	__command.setCommandParameter ( "ListSharedWithMe", ListSharedWithMe );
 	__command.setCommandParameter ( "ListTrashed", ListTrashed );
 	__command.setCommandParameter ( "ListMax", ListMax );
 	__command.setCommandParameter ( "ListCountProperty", ListCountProperty );
@@ -738,7 +738,7 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     	"However, this command uses folder and file names as shown in the My Drive folder."),
 		0, ++y, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(main_JPanel, new JLabel (
-    	"Google Drive paths for this command are specified without the leading 'G:/My Drive' and should use forward slashes."),
+    	"Google Drive paths for this command default to My Drive and should use forward slashes."),
 		0, ++y, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     if ( __working_dir != null ) {
     	JGUIUtil.addComponent(main_JPanel, new JLabel (
@@ -1043,7 +1043,8 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     	+ "  See the 'Output' tab to specify the output file and/or table for the output list."),
 		0, ++yList, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(list_JPanel, new JLabel (
-    	"Limit the output using parameters as follows and by using the 'Regular expression', 'List files', and 'List folders' filters."),
+    	"Limit the output using parameters as follows and by using the 'Regular expression', 'List files',"
+    	+ " 'List folders', 'List shared', and 'List trashed' filters."),
 		0, ++yList, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     //String style = " style=\"border: 1px solid black; border-collapse: collapse; background-color: white;\"";
     String style = " style=\"border-collapse: collapse; border-spacing: 0px;\"";
@@ -1056,27 +1057,37 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     		+ "    <tr" + trStyle + ">"
     		+ "       <th" + tdStyle + ">List what?</th>"
     		+ "       <th" + tdStyle + ">List scope</th>"
-    		+ "       <th" + tdStyle + ">Folder to match</th>"
+    		+ "       <th" + tdStyle + ">Folder or file to match</th>"
     		+ "    </tr>"
     		+ "    <tr" + trStyle + ">"
-    		+ "       <td" + tdStyle + ">One file (<b>not currently supported</b>)</td>"
-    		+ "       <td" + tdStyle + ">All (default)</td>"
-    		+ "       <td" + tdStyle + ">Path for the object (/path/to/file)</td>"
+    		+ "       <td" + tdStyle + ">One file (<b>not implemented</b>)</td>"
+    		+ "       <td" + tdStyle + "><code>All</code></td>"
+    		+ "       <td" + tdStyle + "><code>/path/to/file.ext</code></td>"
     		+ "    </tr>"
     		+ "    <tr" + trStyle + ">"
-    		+ "       <td" + tdStyle + ">Files in My Drive</td>"
-    		+ "       <td" + tdStyle + ">Folder</td>"
-    		+ "       <td" + tdStyle + ">/</td>"
+    		+ "       <td" + tdStyle + ">Files in 'My Drive' root"
+    		+ "       <td" + tdStyle + "><code>Folder</code></td>"
+    		+ "       <td" + tdStyle + "><code>/</code> or <code>/My Drive/</code> (will include shared files and folders if <code>ListShared=True</code>)</td>"
     		+ "    </tr>"
     		+ "    <tr" + trStyle + ">"
-    		+ "       <td" + tdStyle + ">Files in folder</td>"
-    		+ "       <td" + tdStyle + ">Folder</td>"
-    		+ "       <td" + tdStyle + ">/folder/path/ending/in/</td>"
+    		+ "       <td" + tdStyle + ">Files in 'My Drive' folder</td>"
+    		+ "       <td" + tdStyle + "><code>Folder</code></td>"
+    		+ "       <td" + tdStyle + "><code>/folder/path/</code> or <code>/My Drive/folder/path</code></td>"
     		+ "    </tr>"
     		+ "    <tr" + trStyle + ">"
-    		+ "       <td" + tdStyle + ">All files in My Drive (<b>not currently supported</b>)</td>"
-    		+ "       <td" + tdStyle + ">All</td>"
-    		+ "       <td" + tdStyle + "></td>"
+    		+ "       <td" + tdStyle + ">Files in 'Shared with me' folder</td>"
+    		+ "       <td" + tdStyle + "><code>Folder</code></td>"
+    		+ "       <td" + tdStyle + "><code>/Shared with me/folder/path/</code></td>"
+    		+ "    </tr>"
+    		+ "    <tr" + trStyle + ">"
+    		+ "       <td" + tdStyle + ">Files in 'Shared drives' folder (<b>not implemented</b>)</td>"
+    		+ "       <td" + tdStyle + "><code>Folder</code></td>"
+    		+ "       <td" + tdStyle + "><code>/Shared drives/drive/folder/path/</code></td>"
+    		+ "    </tr>"
+    		+ "    <tr" + trStyle + ">"
+    		+ "       <td" + tdStyle + ">All files in folder and sub-folders (<b>not implemented</b>)</td>"
+    		+ "       <td" + tdStyle + "><code>All</code></td>"
+    		+ "       <td" + tdStyle + "><code>/folder/path/</code> or <code>/My Drive/folder/path</code></td>"
     		+ "    </tr>"
     		+ "  </table>"
     		+ "</html>";
@@ -1168,22 +1179,22 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
 		"Optional - list folders? (default=" + __command._True + ")."),
 		3, yList, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
-   JGUIUtil.addComponent(list_JPanel, new JLabel ( "List shared?:"),
+   JGUIUtil.addComponent(list_JPanel, new JLabel ( "List 'Shared with me'?:"),
 		0, ++yList, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
-	__ListShared_JComboBox = new SimpleJComboBox ( false );
-	__ListShared_JComboBox.setToolTipText("Indicate whether to list shared files?");
+	__ListSharedWithMe_JComboBox = new SimpleJComboBox ( false );
+	__ListSharedWithMe_JComboBox.setToolTipText("Indicate whether to list 'Shared with me' files.");
 	List<String> listSharedChoices = new ArrayList<>();
 	listSharedChoices.add ( "" );	// Default.
 	listSharedChoices.add ( __command._False );
 	listSharedChoices.add ( __command._Only );
 	listSharedChoices.add ( __command._True );
-	__ListShared_JComboBox.setData(listSharedChoices);
-	__ListShared_JComboBox.select ( 0 );
-	__ListShared_JComboBox.addActionListener ( this );
-    JGUIUtil.addComponent(list_JPanel, __ListShared_JComboBox,
+	__ListSharedWithMe_JComboBox.setData(listSharedChoices);
+	__ListSharedWithMe_JComboBox.select ( 0 );
+	__ListSharedWithMe_JComboBox.addActionListener ( this );
+    JGUIUtil.addComponent(list_JPanel, __ListSharedWithMe_JComboBox,
 		1, yList, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(list_JPanel, new JLabel(
-		"Optional - list shared files? (default=" + __command._False + ")."),
+		"Optional - list 'Shared with me' files? (default=" + __command._False + ")."),
 		3, yList, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
    JGUIUtil.addComponent(list_JPanel, new JLabel ( "List trashed?:"),
@@ -1486,7 +1497,7 @@ private void refresh () {
 	String ListRegEx = "";
 	String ListFiles = "";
 	String ListFolders = "";
-	String ListShared = "";
+	String ListSharedWithMe = "";
 	String ListTrashed = "";
 	String ListMax = "";
 	String ListCountProperty = "";
@@ -1527,7 +1538,7 @@ private void refresh () {
 		ListRegEx = parameters.getValue ( "ListRegEx" );
 		ListFiles = parameters.getValue ( "ListFiles" );
 		ListFolders = parameters.getValue ( "ListFolders" );
-		ListShared = parameters.getValue ( "ListShared" );
+		ListSharedWithMe = parameters.getValue ( "ListSharedWithMe" );
 		ListTrashed = parameters.getValue ( "ListTrashed" );
 		ListMax = parameters.getValue ( "ListMax" );
 		ListCountProperty = parameters.getValue ( "ListCountProperty" );
@@ -1692,19 +1703,19 @@ private void refresh () {
 				"ListFolders parameter \"" + ListFolders + "\".  Select a value or Cancel." );
 			}
 		}
-		if ( JGUIUtil.isSimpleJComboBoxItem(__ListShared_JComboBox, ListShared,JGUIUtil.NONE, null, null ) ) {
-			__ListShared_JComboBox.select ( ListShared );
+		if ( JGUIUtil.isSimpleJComboBoxItem(__ListSharedWithMe_JComboBox, ListSharedWithMe,JGUIUtil.NONE, null, null ) ) {
+			__ListSharedWithMe_JComboBox.select ( ListSharedWithMe );
 		}
 		else {
-            if ( (ListShared == null) ||	ListShared.equals("") ) {
+            if ( (ListSharedWithMe == null) ||	ListSharedWithMe.equals("") ) {
 				// New command...select the default.
-				__ListShared_JComboBox.select ( 0 );
+				__ListSharedWithMe_JComboBox.select ( 0 );
 			}
 			else {
 				// Bad user command.
 				Message.printWarning ( 1, routine,
 				"Existing command references an invalid\n"+
-				"ListShared parameter \"" + ListShared + "\".  Select a value or Cancel." );
+				"ListSharedWithMe parameter \"" + ListSharedWithMe + "\".  Select a value or Cancel." );
 			}
 		}
 		if ( JGUIUtil.isSimpleJComboBoxItem(__ListTrashed_JComboBox, ListTrashed,JGUIUtil.NONE, null, null ) ) {
@@ -1827,7 +1838,7 @@ private void refresh () {
 	ListRegEx = __ListRegEx_JTextField.getText().trim();
 	ListFiles = __ListFiles_JComboBox.getSelected();
 	ListFolders = __ListFolders_JComboBox.getSelected();
-	ListShared = __ListShared_JComboBox.getSelected();
+	ListSharedWithMe = __ListSharedWithMe_JComboBox.getSelected();
 	ListTrashed = __ListTrashed_JComboBox.getSelected();
 	ListMax = __ListMax_JTextField.getText().trim();
 	ListCountProperty = __ListCountProperty_JTextField.getText().trim();
@@ -1867,7 +1878,7 @@ private void refresh () {
 	props.add ( "ListRegEx=" + ListRegEx );
 	props.add ( "ListFiles=" + ListFiles );
 	props.add ( "ListFolders=" + ListFolders );
-	props.add ( "ListShared=" + ListShared );
+	props.add ( "ListSharedWithMe=" + ListSharedWithMe );
 	props.add ( "ListTrashed=" + ListTrashed );
 	props.add ( "ListMax=" + ListMax );
 	props.add ( "ListCountProperty=" + ListCountProperty );

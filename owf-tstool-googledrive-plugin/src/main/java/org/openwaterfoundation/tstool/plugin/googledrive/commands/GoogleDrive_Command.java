@@ -23,11 +23,8 @@ NoticeEnd */
 package org.openwaterfoundation.tstool.plugin.googledrive.commands;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.OutputStream;
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -152,23 +149,29 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	*/
 	public void checkCommandParameters ( PropList parameters, String command_tag, int warning_level )
 	throws InvalidCommandParameterException {
+		// General.
 		String SessionID = parameters.getValue ( "SessionID" );
 		String AuthenticationMethod = parameters.getValue ( "AuthenticationMethod" );
 		String GoogleDriveCommand = parameters.getValue ( "GoogleDriveCommand" );
+		// Copy.
     	String CopyFiles = parameters.getValue ( "CopyFiles" );
     	String DeleteFiles = parameters.getValue ( "DeleteFiles" );
+    	// Delete.
     	String DeleteFolders = parameters.getValue ( "DeleteFolders" );
     	//String DeleteFoldersScope = parameters.getValue ( "DeleteFoldersScope" );
     	//String DeleteFoldersMinDepth = parameters.getValue ( "DeleteFoldersMinDepth" );
+    	// Download.
     	String DownloadFiles = parameters.getValue ( "DownloadFiles" );
     	String DownloadFolders = parameters.getValue ( "DownloadFolders" );
-    	String ListObjectsScope = parameters.getValue ( "ListScope" );
+    	// List
+    	String ListScope = parameters.getValue ( "ListScope" );
     	String ListFolderPath = parameters.getValue ( "ListFolderPath" );
     	String ListFiles = parameters.getValue ( "ListFiles" );
     	String ListFolders = parameters.getValue ( "ListFolders" );
-    	String ListShared = parameters.getValue ( "ListShared" );
+    	String ListSharedWithMe = parameters.getValue ( "ListSharedWithMe" );
     	String ListTrashed = parameters.getValue ( "ListTrashed" );
     	String ListMax = parameters.getValue ( "ListMax" );
+    	// Upload.
     	String UploadFiles = parameters.getValue ( "UploadFiles" );
     	String UploadFolders = parameters.getValue ( "UploadFolders" );
     	// Output
@@ -308,10 +311,10 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			}
 		}
 
-		if ( (ListShared != null) && !ListShared.equals("") ) {
-			if ( !ListShared.equalsIgnoreCase(_False) && !ListShared.equalsIgnoreCase(_True) &&
-				!ListShared.equalsIgnoreCase(_Only) ) {
-				message = "The ListShared parameter \"" + ListShared + "\" is invalid.";
+		if ( (ListSharedWithMe != null) && !ListSharedWithMe.equals("") ) {
+			if ( !ListSharedWithMe.equalsIgnoreCase(_False) && !ListSharedWithMe.equalsIgnoreCase(_True) &&
+				!ListSharedWithMe.equalsIgnoreCase(_Only) ) {
+				message = "The ListSharedWithMe parameter \"" + ListSharedWithMe + "\" is invalid.";
 				warning += "\n" + message;
 				status.addToLog(CommandPhaseType.INITIALIZATION,
 					new CommandLogRecord(CommandStatusType.FAILURE,
@@ -347,26 +350,15 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			}
 		}
 
-		// Put ListObjectsScope at the end so combinations of parameters can be checked.
-		/*
-		if ( (ListObjectsScope != null) && !ListObjectsScope.equals("") ) {
-			if ( !ListObjectsScope.equalsIgnoreCase(_All) && !ListObjectsScope.equalsIgnoreCase(_Folder) && !ListObjectsScope.equalsIgnoreCase(_Root)) {
-				message = "The ListObjectsScope parameter \"" + ListObjectsScope + "\" is invalid.";
+		// Put ListScope at the end so combinations of parameters can be checked.
+		if ( (ListScope != null) && !ListScope.equals("") ) {
+			if ( !ListScope.equalsIgnoreCase(_All) && !ListScope.equalsIgnoreCase(_Folder) ) {
+				message = "The ListScope parameter \"" + ListScope + "\" is invalid.";
 				warning += "\n" + message;
 				status.addToLog(CommandPhaseType.INITIALIZATION,
 					new CommandLogRecord(CommandStatusType.FAILURE,
-						message, "Specify the parameter as " + _All + " (default), " + _Folder + ", or " + _Root + "."));
+						message, "Specify the parameter as " + _All + " or " + _Folder + " (default).") );
 			}
-			// Cannot be specified with Prefix.
-			/ *
-			if ( ListObjectsScope.equalsIgnoreCase(_True) && (Prefix != null) && !Prefix.isEmpty() ) {
-				message = "ListObjectsScope=True cannot be specified with a Prefix value.";
-				warning += "\n" + message;
-				status.addToLog(CommandPhaseType.INITIALIZATION,
-					new CommandLogRecord(CommandStatusType.FAILURE,
-						message, "Change to not list root only or remove the prefix."));
-			}
-			* /
 		}
 
 		if ( (IfInputNotFound != null) && !IfInputNotFound.equals("") ) {
@@ -383,6 +375,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 
 		// Additional checks specific to a command.
 
+		/*
 		if ( s3Command != AwsS3CommandType.LIST_BUCKETS ) {
 			// All commands except listing buckets needs the bucket.
 			if ( (Bucket == null) || Bucket.isEmpty() ) {
@@ -557,12 +550,12 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 					new CommandLogRecord(CommandStatusType.WARNING,
 						message, "Remove the ListFolders parameter."));
 			}
-			if ( (ListShared != null) && !ListShared.isEmpty() ) {
-				message = "The ListShared parameter is not used when downloading objects.";
+			if ( (ListSharedWithMe != null) && !ListSharedWithMe.isEmpty() ) {
+				message = "The ListSharedWithMe parameter is not used when downloading objects.";
 				warning += "\n" + message;
 				status.addToLog(CommandPhaseType.INITIALIZATION,
 					new CommandLogRecord(CommandStatusType.WARNING,
-						message, "Remove the ListShared parameter."));
+						message, "Remove the ListSharedWithMe parameter."));
 			}
 			if ( (ListTrashed != null) && !ListTrashed.isEmpty() ) {
 				message = "The ListTrashed parameter is not used when downloading objects.";
@@ -735,7 +728,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		validList.add ( "ListRegEx" );
 		validList.add ( "ListFiles" );
 		validList.add ( "ListFolders" );
-		validList.add ( "ListShared" );
+		validList.add ( "ListSharedWithMe" );
 		validList.add ( "ListTrashed" );
 		validList.add ( "MaxKeys" );
 		validList.add ( "MaxObjects" );
@@ -882,8 +875,8 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     				if ( !error ) {
     					// Convert the requested file path to a file ID:
     					String downloadFilePath = downloadFilesGoogleDrivePaths.get(iFile);
-    					String downloadFileId = GoogleDriveToolkit.getInstance().getFileIdForPath(
-    						googleDriveSession.getService(), downloadFilePath);
+    					String downloadFileId = GoogleDriveToolkit.getInstance().getFileIdForPath (
+    						googleDriveSession.getService(), downloadFilePath );
     					if ( downloadFileId == null ) {
 							message = "Error getting Google Drive ID for file path \"" + downloadFilePath + "\".";
 	 						Message.printWarning ( warningLevel,
@@ -953,7 +946,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		int listParentFolderCol, int listParentFolderIdCol,
 		int listSharedCol, int listSharedWithMeTimeCol, int listSharingUserCol,
    		int listSizeCol,
-		int listTrashedCol, int listTrashedTimeCol, int listTrashedUserCol,
+		int listTrashedCol, int listTrashedTimeCol, int listTrashingUserCol,
    		int listTypeCol, int listWebViewLinkCol,
 		String listCountProperty,
 		CommandStatus status, int logLevel, int warningLevel, int warningCount, String commandTag
@@ -961,16 +954,23 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		throws CommandException, Exception {
 		String routine = getClass().getSimpleName() + ".doGoogleDriveList";
 		String message;
+
+		// Get the toolkit with useful methods.
+		GoogleDriveToolkit googleDriveToolkit = GoogleDriveToolkit.getInstance();
 		
    		// Folder to list:
    		// - convert the G: drive path to a folder ID
    		// - do not include "My Drive" in the path
 		
 		StringBuilder q = new StringBuilder();
-		if ( listFolderPath.equals("/") ) {
+		String folderId = null;
+		if ( listFolderPath.equals("/")
+			|| listFolderPath.equals("/" + GoogleDriveToolkit.MY_DRIVE)
+			|| listFolderPath.equals("/" + GoogleDriveToolkit.SHARED_WITH_ME) ) {
 			// List the root folder.
 			if ( listShared ) {
-				// Shared files have to be listed independent of parent folder.
+				// Shared files have to be listed independent of parent folder:
+				// - TODO smalers 2023-12-17 might be a way to combine in one query
 				q = new StringBuilder("sharedWithMe=" + listShared );
 			}
 			else {
@@ -980,9 +980,15 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		else {
 			// List a specific folder.
 			String folderPath = listFolderPath;
-			String folderId = null;
 			try {
-				folderId = GoogleDriveToolkit.getInstance().getFolderIdForPath ( googleDriveSession.getService(), folderPath );
+				if ( googleDriveToolkit.pathStartsWithSharedWithMe(folderPath) ) {
+					// Requested a path to a 'Shared with me' path.
+					folderId = GoogleDriveToolkit.getInstance().getFolderIdForSharedWithMePath ( googleDriveSession.getService(), folderPath );
+				}
+				else {
+					// Not a path for a shared folder so assume it is in 'My Drive'.
+					folderId = googleDriveToolkit.getFolderIdForPath ( googleDriveSession.getService(), folderPath );
+				}
 			}
 			catch ( Exception e ) {
 				message = "Error converting folder \"" + folderPath + " to Google Drive ID.";
@@ -1008,13 +1014,15 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			// - default is to list trashed files and folders so always specify how handled
 			// - trashed=true will list ONLY trashed files and folders, false will list only NOT trashed files and folders
 			// - trashed objects are listed in the Google Drive recycling bin
-			if ( listShared ) {
+			/*
+			if ( folderId == null ) {
 				// Shared files have to be listed independent of parent folder.
 				q = new StringBuilder("sharedWithMe=" + listShared);
 			}
 			else {
+			*/
 				q = new StringBuilder("'" + folderId + "' in parents and trashed=" + listTrashed );
-			}
+			//}
 		}
 
    		// Print the names and IDs for up to 10 files.
@@ -1156,7 +1164,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 								// - only need to do this if the parent ID has changed
 								// - most of the time a single folder is being listed
 								Drive service = googleDriveSession.getService();
-								parentPath = GoogleDriveToolkit.getInstance().getParentFolderPathFromFolderId(service, parentId);
+								parentPath = googleDriveToolkit.getParentFolderPathFromFolderId(service, parentId);
 							}
 							parentIdPrev = parentId;
 						}
@@ -1207,7 +1215,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
    						rec.setFieldValue(listTrashedCol, file.getTrashed());
    						User trashingUser = file.getTrashingUser();
    						if ( trashingUser != null ) {
-   							rec.setFieldValue(listTrashedUserCol, trashingUser.getDisplayName());
+   							rec.setFieldValue(listTrashingUserCol, trashingUser.getDisplayName());
    						}
    						// Google API has its own DateTime in the API so convert to TSTool type for consistency.
    						com.google.api.client.util.DateTime fileTrashedTime = file.getTrashedTime();
@@ -1885,9 +1893,9 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	  	if ( (ListFolders != null) && ListFolders.equalsIgnoreCase("false") ) {
 			listFolders = false;
 	  	}
-   		String ListShared = parameters.getValue ( "ListShared" );
-	  	if ( (ListShared == null) || ListShared.isEmpty() ) {
-			ListShared = _False; // Default.
+   		String ListSharedWithMe = parameters.getValue ( "ListSharedWithMe" );
+	  	if ( (ListSharedWithMe == null) || ListSharedWithMe.isEmpty() ) {
+			ListSharedWithMe = _False; // Default.
 	  	}
    		String ListTrashed = parameters.getValue ( "ListTrashed" );
 	  	boolean listTrashed = false; // Default.
@@ -2305,7 +2313,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
    	    		int listSizeCol = -1;
         		int listTrashedCol = -1;
         		int listTrashedTimeCol = -1;
-        		int listTrashedUserCol = -1;
+        		int listTrashingUserCol = -1;
         		int listTypeCol = -1;
         		int listWebViewLinkCol = -1;
 
@@ -2338,7 +2346,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	        			columnList.add ( new TableField(TableField.DATA_TYPE_DATETIME, "LastModifiedTime", -1) );
     	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "LastModifiedUser", -1) );
     	        			columnList.add ( new TableField(TableField.DATA_TYPE_BOOLEAN, "Trashed", -1) );
-    	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "TrashedUser", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "TrashingUser", -1) );
     	        			columnList.add ( new TableField(TableField.DATA_TYPE_DATETIME, "TrashedTime", -1) );
     	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "OriginalFilename", -1) );
     	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "WebViewLink", -1) );
@@ -2371,7 +2379,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	        			listLastModifiedTimeCol = table.getFieldIndex("LastModifiedTime");
     	        			listLastModifiedUserCol = table.getFieldIndex("LastModifiedUser");
     	        			listTrashedCol = table.getFieldIndex("Trashed");
-    	        			listTrashedUserCol = table.getFieldIndex("TrashedUser");
+    	        			listTrashingUserCol = table.getFieldIndex("TrashingUser");
     	        			listTrashedTimeCol = table.getFieldIndex("TrashedTime");
     	        			listOriginalFilenameCol = table.getFieldIndex("OriginalFilename");
     	        			listWebViewLinkCol = table.getFieldIndex("WebViewLink");
@@ -2468,8 +2476,8 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	        			if ( listTrashedCol < 0 ) {
     	            			listTrashedCol = table.addField(new TableField(TableField.DATA_TYPE_BOOLEAN, "Trashed", -1), "");
     	        			}
-    	        			if ( listTrashedUserCol < 0 ) {
-    	            			listTrashedUserCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "TrashedUser", -1), "");
+    	        			if ( listTrashingUserCol < 0 ) {
+    	            			listTrashingUserCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "TrashingUser", -1), "");
     	        			}
     	        			if ( listTrashedTimeCol < 0 ) {
     	            			listTrashedTimeCol = table.addField(new TableField(TableField.DATA_TYPE_DATETIME, "TrashedTime", -1), "");
@@ -2527,7 +2535,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	    	}
     	    	*/
    	        	if ( googleDriveCommand == GoogleDriveCommandType.LIST ) {
-   	        		if ( !ListShared.equalsIgnoreCase(_Only) ) {
+   	        		if ( !ListSharedWithMe.equalsIgnoreCase(_Only) ) {
    	        			// Get the list of files and folders that is not shared:
    	        			// - list these before shared files
    	        			// - the shared files will be queried below and appended
@@ -2545,12 +2553,12 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     			      		listParentFolderCol, listParentFolderIdCol,
     			      		listSharedCol, listSharedWithMeTimeCol, listSharingUserCol,
     			      		listSizeCol,
-    			      		listTrashedCol, listTrashedTimeCol, listTrashedUserCol,
+    			      		listTrashedCol, listTrashedTimeCol, listTrashingUserCol,
     			      		listTypeCol, listWebViewLinkCol,
     			      		ListCountProperty,
     			      		status, logLevel, warningLevel, warningCount, commandTag );
    	        		}
-   	        		if ( ListShared.equalsIgnoreCase(_Only) || ListShared.equalsIgnoreCase(_True) ) {
+   	        		if ( ListSharedWithMe.equalsIgnoreCase(_Only) || ListSharedWithMe.equalsIgnoreCase(_True) ) {
    	        			// Get the list of shared files and folders:
    	        			// - will append to the above list
    	        			boolean listShared = true;
@@ -2565,7 +2573,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     			      		listParentFolderCol, listParentFolderIdCol,
     			      		listSharedCol, listSharedWithMeTimeCol, listSharingUserCol,
     			      		listSizeCol,
-    			      		listTrashedCol, listTrashedTimeCol, listTrashedUserCol,
+    			      		listTrashedCol, listTrashedTimeCol, listTrashingUserCol,
     			      		listTypeCol, listWebViewLinkCol,
     			      		ListCountProperty,
     			      		status, logLevel, warningLevel, warningCount, commandTag );
@@ -2773,7 +2781,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			"ListRegEx",
 			"ListFiles",
 			"ListFolders",
-			"ListShared",
+			"ListSharedWithMe",
 			"ListTrashed",
 			"ListMax",
 			"ListCountProperty",
