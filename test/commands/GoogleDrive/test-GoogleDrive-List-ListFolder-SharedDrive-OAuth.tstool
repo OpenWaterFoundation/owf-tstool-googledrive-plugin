@@ -1,10 +1,10 @@
-StartLog(LogFile="results/test-GoogleDrive-List-ListFolder-ServiceAccount.tstool.log")
-# Test listing a folder's files:
-# - use service account authentication
-# - expect to have zero files because service account has no My Drive files and files and folders must be shared.
+StartLog(LogFile="results/test-GoogleDrive-List-ListFolder-SharedDrive-OAuth.tstool.log")
+# Test listing a shared drive folder's files:
+# - use the test shared drive
+# - use OAuth for authentication
 #
 # Configuration data.
-SetProperty(PropertyName="TestGoogleDriveFolder",PropertyType="String",PropertyValue="tstool-googledrive-plugin/test/commands/GoogleDrive/data")
+SetProperty(PropertyName="TestGoogleDriveFolder",PropertyType="String",PropertyValue="/Shared drives/TestSharedDrive/tstool-googledrive-plugin/test/commands/GoogleDrive/data")
 #
 # Delete the bucket files first:
 # - list the folder to make sure the files were deleted before uploading and copying
@@ -20,10 +20,11 @@ EndIf(Name="IfDeleteCheck")
 AwsS3(S3Command="UploadObjects",Region="us-west-2",Bucket="test.openwaterfoundation.org",UploadFolders="data/testfolder2:${TestS3Folder}/testfolder2/",UploadFiles="data/root-testfile1.txt:${TestS3Folder}/*,data/root-testfile2.txt:${TestS3Folder}/*,data/testfolder1/testfolder1-testfile1.txt:${TestS3Folder}/testfolder1/*,data/testfolder1/testfolder1-testfile2.txt:${TestS3Folder}/testfolder1/*",OutputTableID="BucketList")
 */
 # SetDebugLevel(LogFileLevel=1)
-# GoogleDrive(SessionID="TSTool",AuthenticationMethod="ServiceAccountKey",GoogleDriveCommand="List",ListScope="Folder",ListFolderPath="${TestGoogleDriveFolder}/",ListTrashed="False",ListCountProperty="TestListCount",OutputTableID="TestList")
-# GoogleDrive(SessionID="TSTool",AuthenticationMethod="OAuth",GoogleDriveCommand="List",ListScope="Folder",ListFolderPath="/",ListTrashed="False",ListCountProperty="TestListCount",OutputTableID="TestList")
-GoogleDrive(SessionID="TSTool",AuthenticationMethod="ServiceAccountKey",GoogleDriveCommand="List",ListScope="Folder",ListFolderPath="/",ListSharedWithMe="False",ListTrashed="False",ListCountProperty="TestListCount",OutputTableID="TestList")
+# List a specific folder.
+# GoogleDrive(SessionID="TSTool",AuthenticationMethod="ServiceAccountKey",GoogleDriveCommand="List",ListScope="Folder",ListFolderPath="${TestGoogleDriveFolder}/",ListCountProperty="TestListCount",OutputTableID="TestListFolder")
+GoogleDrive(SessionID="TSTool",AuthenticationMethod="OAuth",GoogleDriveCommand="List",ListScope="Folder",ListFolderPath="/id/0ALqyffZU8zvKUk9PVA/",ListCountProperty="TestListCount",OutputTableID="TestListFolder")
 # SetDebugLevel(ScreenLevel=0,LogFileLevel=0)
-If(Name="IfTestListCount",Condition="${TestListCount} != 0")
-Message(Message="Error - should be 0 because service account requires using sharing (have ${TestListCount}).",CommandStatus="FAILURE")
+# The following works for the OWF developer.
+If(Name="IfTestListCount",Condition="${TestListCount} < 5")
+Message(Message="Error - should be 5 (2 files, 3 folders) if the objects are correctly uploaded (have ${TestListCount}).",CommandStatus="FAILURE")
 EndIf(Name="IfTestListCount")

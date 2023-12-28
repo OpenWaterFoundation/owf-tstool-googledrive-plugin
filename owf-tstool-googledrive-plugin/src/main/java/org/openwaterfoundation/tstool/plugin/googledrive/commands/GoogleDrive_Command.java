@@ -936,9 +936,21 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			// List a specific folder.
 			String folderPath = listFolderPath;
 			try {
-				if ( googleDriveToolkit.pathStartsWithSharedWithMe(folderPath) ) {
+				if ( listFolderPath.startsWith("/id/") ) {
+					// Specifying the Google Drive folder ID to list.
+					folderId = listFolderPath.substring(4);
+					if ( folderId.endsWith("/") ) {
+						// Remove the trailing slash.
+						folderId = folderId.substring(0, folderId.length() - 1);
+					}
+				}
+				else if ( googleDriveToolkit.pathStartsWithSharedWithMe(folderPath) ) {
 					// Requested a path to a 'Shared with me' path.
 					folderId = GoogleDriveToolkit.getInstance().getFolderIdForSharedWithMePath ( googleDriveSession.getService(), folderPath );
+				}
+				else if ( googleDriveToolkit.pathStartsWithSharedDrives(folderPath) ) {
+					// Requested a path to a 'Shared drives' path.
+					folderId = GoogleDriveToolkit.getInstance().getFolderIdForSharedDrivesPath ( googleDriveSession.getService(), folderPath );
 				}
 				else {
 					// Not a path for a shared folder so assume it is in 'My Drive'.
@@ -969,18 +981,13 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			// - default is to list trashed files and folders so always specify how handled
 			// - trashed=true will list ONLY trashed files and folders, false will list only NOT trashed files and folders
 			// - trashed objects are listed in the Google Drive recycling bin
-			/*
-			if ( folderId == null ) {
-				// Shared files have to be listed independent of parent folder.
-				q = new StringBuilder("sharedWithMe=" + listShared);
-			}
-			else {
-			*/
-				q = new StringBuilder("'" + folderId + "' in parents and trashed=" + listTrashed );
-			//}
+			// - do not specify sharedWithMe=true because that only applies to top-level folders.
+			q = new StringBuilder("'" + folderId + "' in parents and trashed=" + listTrashed );
 		}
+		
+		Message.printStatus(2, routine, "Listing files in folder using q=" + q);
 
-   		// Print the names and IDs for up to 10 files.
+   		// Output the names and IDs for up to 10 files.
    		FileList result = null;
    		Drive.Files.List request = null;
    		try {
@@ -1032,6 +1039,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		int fileCount = 0;
 		int folderCount = 0;
 		int objectCount = 0;
+		// Page count is used for output messgaes.
 		int pageCount = 0;
    		while ( (result.getFiles() != null) && (result.getFiles().size() > 0) ) {
    			++pageCount;
@@ -1255,9 +1263,9 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		String message;
 
 		// Get the toolkit with useful methods.
-		GoogleDriveToolkit googleDriveToolkit = GoogleDriveToolkit.getInstance();
+		//GoogleDriveToolkit googleDriveToolkit = GoogleDriveToolkit.getInstance();
 		
-   		// Print the names and IDs for up to 10 files.
+   		// Output the names and IDs for up to 10 files.
    		DriveList result = null;
    		Drive.Drives.List request = null;
    		try {

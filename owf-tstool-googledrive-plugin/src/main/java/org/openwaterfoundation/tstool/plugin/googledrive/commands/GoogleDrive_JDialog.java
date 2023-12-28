@@ -998,6 +998,8 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
 
     JGUIUtil.addComponent(listDrives_JPanel, new JLabel ("List all Google Drive shared drives that are visible to the user based on credentials."),
 		0, ++yListDrives, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(listDrives_JPanel, new JLabel ("The My Drive drive is not listed."),
+		0, ++yListDrives, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(listDrives_JPanel, new JLabel ("Use * in the regular expression as wildcards to filter the results."),
 		0, ++yListDrives, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(listDrives_JPanel, new JLabel ("See the 'Output' tab to specify the output table and/or file for the bucket list."),
@@ -1077,6 +1079,11 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     		+ "       <td" + tdStyle + ">Files in 'Shared drives' folder (<b>not implemented</b>)</td>"
     		+ "       <td" + tdStyle + "><code>Folder</code></td>"
     		+ "       <td" + tdStyle + "><code>/Shared drives/drive/folder/path/</code></td>"
+    		+ "    </tr>"
+    		+ "    <tr" + trStyle + ">"
+    		+ "       <td" + tdStyle + ">Files in folder given its Google Drive identifier</td>"
+    		+ "       <td" + tdStyle + "><code>Folder</code></td>"
+    		+ "       <td" + tdStyle + "><code>/id/the-identifier/</code></td>"
     		+ "    </tr>"
     		+ "    <tr" + trStyle + ">"
     		+ "       <td" + tdStyle + ">All files in folder and sub-folders (<b>not implemented</b>)</td>"

@@ -135,6 +135,8 @@ public class GoogleDriveSession {
 	 */
 	private static final List<String> SCOPES =
 		Collections.singletonList(DriveScopes.DRIVE_READONLY);
+		// The following allows read and write.
+		//Collections.singletonList(DriveScopes.DRIVE);
 
 	//private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
 
@@ -386,9 +388,6 @@ public class GoogleDriveSession {
 				}
 			}
 		}
-
-		// Returns an authorized Credential object.
-		//return credential;
 	}
 
 	/**
@@ -400,7 +399,8 @@ public class GoogleDriveSession {
 	}
 
 	/**
-	 * Return the credential to use for Google Drive operations.
+	 * Return the credential to use for Google Drive operations,
+	 * used with OAuth authentication.
 	 * @return the credential
 	 */
 	public Credential getCredential () {
@@ -408,7 +408,8 @@ public class GoogleDriveSession {
 	}
 
 	/**
-	 * Return the credentials to use for Google Drive operations.
+	 * Return the credentials to use for Google Drive operations,
+	 * used wiht service account authentication.
 	 * @return the credentials
 	 */
 	public GoogleCredentials getCredentials () {
