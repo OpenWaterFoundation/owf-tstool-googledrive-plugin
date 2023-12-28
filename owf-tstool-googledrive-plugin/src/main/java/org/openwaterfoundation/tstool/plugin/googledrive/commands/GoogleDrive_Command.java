@@ -36,6 +36,7 @@ import org.openwaterfoundation.tstool.plugin.googledrive.GoogleDriveSession;
 import org.openwaterfoundation.tstool.plugin.googledrive.GoogleDriveToolkit;
 
 import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.model.DriveList;
 import com.google.api.services.drive.model.FileList;
 import com.google.api.services.drive.model.User;
 
@@ -204,41 +205,6 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 						message, "Specify a valid authentication method."));
 			}
 		}
-		
-		// Try to open a session to see if the credentials file is found.
-		/*
-		GoogleDriveSession googleDriveSession = null;
-		try {
-			googleDriveSession = new GoogleDriveSession ( SessionID, authenticationMethod );
-		}
-		catch ( FileNotFoundException fnfe ) {
-			if ( googleDriveSession != null ) {
-				message = "The credentials file was not found: " + googleDriveSession.getCredentialsFilePath() ;
-				warning += "\n" + message;
-				status.addToLog(CommandPhaseType.INITIALIZATION,
-					new CommandLogRecord(CommandStatusType.FAILURE,
-						message, "Specify the a valid session ID and authentication method."));
-			}
-		}
-		catch ( GeneralSecurityException gse ) {
-			if ( googleDriveSession != null ) {
-				message = "GeneralSecurityException: The credentials are not valid: " + googleDriveSession.getCredentialsFilePath() ;
-				warning += "\n" + message;
-				status.addToLog(CommandPhaseType.INITIALIZATION,
-					new CommandLogRecord(CommandStatusType.FAILURE,
-						message, "Specify the a valid session ID and authentication method."));
-			}
-		}
-		catch ( IOException ioe ) {
-			if ( googleDriveSession != null ) {
-				message = "Error reading credentials file: " + googleDriveSession.getCredentialsFilePath() ;
-				warning += "\n" + message;
-				status.addToLog(CommandPhaseType.INITIALIZATION,
-					new CommandLogRecord(CommandStatusType.FAILURE,
-						message, "Specify the a valid session ID and authentication method."));
-			}
-		}
-		*/
 
 		// The existence of the file to append is not checked during initialization
 		// because files may be created dynamically at runtime.
@@ -376,17 +342,6 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		// Additional checks specific to a command.
 
 		/*
-		if ( s3Command != AwsS3CommandType.LIST_BUCKETS ) {
-			// All commands except listing buckets needs the bucket.
-			if ( (Bucket == null) || Bucket.isEmpty() ) {
-				message = "The bucket must be specified.";
-				warning += "\n" + message;
-				status.addToLog(CommandPhaseType.INITIALIZATION,
-					new CommandLogRecord(CommandStatusType.FAILURE,
-						message, "Specify the bucket."));
-			}
-		}
-
 		if ( s3Command == AwsS3CommandType.COPY_OBJECTS ) {
 			if ( (CopyFiles == null) || CopyFiles.isEmpty() ) {
 				message = "The copy files list must be specified.";
@@ -688,7 +643,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 
 		// The output table or file is needed for lists:
 		// - some internal logic such as counts uses the table
-		if ( //(googleDriveCommand == GoogleDriveCommandType.LIST_BUCKETS) ||
+		if ( (googleDriveCommand == GoogleDriveCommandType.LIST_DRIVES) ||
 			(googleDriveCommand == GoogleDriveCommandType.LIST) ) {
 			// Must specify table and/or file.
 			if ( ((OutputTableID == null) || OutputTableID.isEmpty()) && ((OutputFile == null) || OutputFile.isEmpty()) ) {
@@ -720,8 +675,8 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		validList.add ( "DownloadFolders" );
 		validList.add ( "DownloadFiles" );
 		// List buckets.
-		validList.add ( "ListBucketsRegEx" );
-		validList.add ( "ListBucketsCountProperty" );
+		validList.add ( "ListDrivesRegEx" );
+		validList.add ( "ListDrivesCountProperty" );
 		// List bucket objects.
 		validList.add ( "ListScope" );
 		validList.add ( "ListFolderPath" );
@@ -1261,6 +1216,139 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	// Set the property indicating the number of bucket objects.
        	if ( (listCountProperty != null) && !listCountProperty.equals("") ) {
        		//int numObjects = objectCount;
+       		int numObjects = table.getNumberOfRecords();
+           	PropList requestParams = new PropList ( "" );
+           	requestParams.setUsingObject ( "PropertyName", listCountProperty );
+           	requestParams.setUsingObject ( "PropertyValue", new Integer(numObjects) );
+           	try {
+               	processor.processRequest( "SetProperty", requestParams);
+           	}
+           	catch ( Exception e ) {
+               	message = "Error requesting SetProperty(" + listCountProperty + "=\"" + numObjects + "\") from processor.";
+               	Message.printWarning(logLevel,
+                   	MessageUtil.formatMessageTag( commandTag, ++warningCount),
+                   	routine, message );
+                    	status.addToLog ( CommandPhaseType.RUN,
+                   	new CommandLogRecord(CommandStatusType.FAILURE,
+                       	message, "Report the problem to software support." ) );
+           	}
+       	}
+
+   		return warningCount;
+	}
+
+	/**
+	 * Execute Google Drive "list drives":
+	 * - see https://developers.google.com/drive/api/reference/rest/v3/files/list
+	 */
+	private int doGoogleDriveListDrives (
+		CommandProcessor processor,
+		GoogleDriveSession googleDriveSession,
+		String regex,
+		DataTable table,
+		int driveCreationTimeCol, int driveIdCol, int driveNameCol,
+		String listCountProperty,
+		CommandStatus status, int logLevel, int warningLevel, int warningCount, String commandTag
+		)
+		throws CommandException, Exception {
+		String routine = getClass().getSimpleName() + ".doGoogleDriveList";
+		String message;
+
+		// Get the toolkit with useful methods.
+		GoogleDriveToolkit googleDriveToolkit = GoogleDriveToolkit.getInstance();
+		
+   		// Print the names and IDs for up to 10 files.
+   		DriveList result = null;
+   		Drive.Drives.List request = null;
+   		try {
+   			// Do the initial request.
+   			request = googleDriveSession.getService()
+   				// Request to execute.
+   				.drives()
+   				// Holds the parameters for the request.
+   				.list()
+   				// Set the fields that are returned (creation time, etc.).
+       			.setFields("*");
+			// Invoke the remote operation.
+   			result = request.execute();
+   		}
+   		catch ( Exception e ) {
+   			message = "Error listing Google Drive drives.";
+		 	Message.printWarning ( warningLevel,
+		 		MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
+		 	Message.printWarning ( 3, routine, e );
+		 	status.addToLog(CommandPhaseType.RUN,
+		 		new CommandLogRecord(CommandStatusType.FAILURE,
+		 			message, "See the log file for details."));
+		 	throw new CommandException ( message );
+   		}
+   		
+   		// Process the result files and if necessary make additional requests.
+		int driveCount = 0;
+		int pageCount = 0;
+   		while ( (result.getDrives() != null) && (result.getDrives().size() > 0) ) {
+   			++pageCount;
+   			List<com.google.api.services.drive.model.Drive> drives = result.getDrives();
+   			if ( (drives == null) || drives.isEmpty() ) {
+   				Message.printStatus(2, routine, "No more drives found (page=" + pageCount + ").");
+   			}
+   			else {
+   				// Have files and folders to process.
+   				Message.printStatus(2, routine, "Processing " + drives.size() + " drives (page=" + pageCount + ").");
+   				// Do not allow duplicates in the output.
+   				boolean allowDuplicates = false;
+   				TableRecord rec = null;
+   				for ( com.google.api.services.drive.model.Drive drive : drives ) {
+   					//Message.printStatus(2, routine, String.format("%s (%s)\n", file.getName(), file.getId()));
+   					// Output to table.
+					if ( regex != null ) {
+						// Want to apply a regular expression to the name.
+						if ( !drive.getName().matches(regex) ) {
+							if ( Message.isDebugOn ) {
+								Message.printStatus(2, routine, "Does not match regular expression - skipping: " + drive.getName());
+							}
+							continue;
+						}
+					}
+					// If here, the object should be listed in the output table.
+ 					if ( table != null ) {
+   						rec = null;
+   						if ( !allowDuplicates ) {
+   							// Try to match the drive ID, which is the unique identifier.
+   							rec = table.getRecord ( driveIdCol, drive.getId() );
+   						}
+   						if ( rec == null ) {
+   							// Create a new record.
+   							rec = table.addRecord(table.emptyRecord());
+   						}
+   						// Set the data in the record:
+   						// - list in the order of the table
+   						rec.setFieldValue(driveIdCol,drive.getId());
+						rec.setFieldValue(driveNameCol,drive.getName());
+   						// Google API has its own DateTime in the API so convert to TSTool type for consistency.
+   						com.google.api.client.util.DateTime driveCreationTime = drive.getCreatedTime();
+   						if ( driveCreationTime != null ) {
+   							DateTime creationTime = DateTime.parse(driveCreationTime.toString());
+   							rec.setFieldValue(driveCreationTimeCol, creationTime);
+   						}
+   					}
+   				}
+   			}
+
+   			// Get the next page of results.
+   			String nextPageToken = result.getNextPageToken();
+   			if ( nextPageToken == null ) {
+   				break;
+   			}
+   			else {
+   				request.setPageToken(nextPageToken);
+   				result = request.execute();
+   			}
+   		}
+
+    	Message.printStatus ( 2, routine, "List has driveCount=" + driveCount );
+    	// Set the property indicating the number of drives.
+       	if ( (listCountProperty != null) && !listCountProperty.equals("") ) {
        		int numObjects = table.getNumberOfRecords();
            	PropList requestParams = new PropList ( "" );
            	requestParams.setUsingObject ( "PropertyName", listCountProperty );
@@ -1845,28 +1933,28 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
         	}
     	}
 
-		// Get command parameters for: List Buckets (TODO smalers 2023-12-18 convert to list Drives and handled shared)
+		// Get command parameters for: List Drives
 
-    	// List buckets.
-		String ListBucketsRegEx = parameters.getValue ( "ListBucketsRegEx" );
-		// TODO smalers 2023-01-27 evaluate whether regex can be expanded or will have conflicts.
-		//ListBucketsRegEx = TSCommandProcessorUtil.expandParameterValue(processor,this,ListBucketsRegEx);
+    	// List drives.
+		String ListDrivesRegEx = parameters.getValue ( "ListDrivesRegEx" );
+		// TODO smalers 2023-12-28 evaluate whether regex can be expanded or will have conflicts.
+		ListDrivesRegEx = TSCommandProcessorUtil.expandParameterValue(processor,this,ListDrivesRegEx);
 		// Convert the RegEx to Java style.
-		String listBucketsRegEx = null;
-		if ( (ListBucketsRegEx != null) && !ListBucketsRegEx.isEmpty() ) {
-			if ( ListBucketsRegEx.toUpperCase().startsWith("JAVA:") ) {
+		String listDrivesRegEx = null;
+		if ( (ListDrivesRegEx != null) && !ListDrivesRegEx.isEmpty() ) {
+			if ( ListDrivesRegEx.toUpperCase().startsWith("JAVA:") ) {
 				// Use as is for a Java regular expression.
-				listBucketsRegEx = ListBucketsRegEx.substring(5);
+				listDrivesRegEx = ListDrivesRegEx.substring(5);
 			}
 			else {
 				// Default to glob so convert to Java regex.
 				// TODO smalers 2023-02-01 need to hanle [abc] and [a-z].
-				listBucketsRegEx = ListBucketsRegEx.replace(".", "\\.").replace("*", ".*");
+				listDrivesRegEx = ListDrivesRegEx.replace(".", "\\.").replace("*", ".*");
 			}
 		}
-    	String ListBucketsCountProperty = parameters.getValue ( "ListBucketsCountProperty" );
+    	String ListDrivesCountProperty = parameters.getValue ( "ListDrivesCountProperty" );
     	if ( commandPhase == CommandPhaseType.RUN ) {
-    		ListBucketsCountProperty = TSCommandProcessorUtil.expandParameterValue(processor, this, ListBucketsCountProperty);
+    		ListDrivesCountProperty = TSCommandProcessorUtil.expandParameterValue(processor, this, ListDrivesCountProperty);
     	}
 
 		// Get command parameters for: List - ListFolders
@@ -2292,8 +2380,9 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     			// Column numbers are used later.
 
 	    		// Drive list columns.
+        		int driveIdCol = -1;
         		int driveNameCol = -1;
-        		int driveCreationDateCol = -1;
+        		int driveCreationTimeCol = -1;
 
         		// List columns:
         		// - list alphabetically
@@ -2326,8 +2415,9 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	    			// 1. Define the column names based on S3 commands.
     	        		List<TableField> columnList = new ArrayList<>();
     	        		if ( googleDriveCommand == GoogleDriveCommandType.LIST_DRIVES ) {
-    	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "DriveName", -1) );
-    	        			columnList.add ( new TableField(TableField.DATA_TYPE_DATETIME, "CreationDate", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "Id", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_STRING, "Name", -1) );
+    	        			columnList.add ( new TableField(TableField.DATA_TYPE_DATETIME, "CreationTime", -1) );
     	        		}
     	        		else if ( googleDriveCommand == GoogleDriveCommandType.LIST ) {
     	        			// List in order that makes sense (not alphabetical).
@@ -2359,8 +2449,9 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	        		}
                 		// 3. Get the column numbers from the names for later use.
     	        		if ( googleDriveCommand == GoogleDriveCommandType.LIST_DRIVES ) {
-    	        			driveNameCol = table.getFieldIndex("DriveName");
-    	        			driveCreationDateCol = table.getFieldIndex("CreationDate");
+    	        			driveIdCol = table.getFieldIndex("Id");
+    	        			driveNameCol = table.getFieldIndex("Name");
+    	        			driveCreationTimeCol = table.getFieldIndex("CreationTime");
     	        		}
     	        		else if ( googleDriveCommand == GoogleDriveCommandType.LIST ) {
     	        			// List in the same order as "add" calls above.
@@ -2420,13 +2511,17 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	    			// Table exists:
     	        		// - make sure that the needed columns exist and otherwise add them
     	        		if ( googleDriveCommand == GoogleDriveCommandType.LIST_DRIVES ) {
-    	        			driveNameCol = table.getFieldIndex("DriveName");
-    	        			driveCreationDateCol = table.getFieldIndex("CreationDate");
-    	        			if ( driveNameCol < 0 ) {
-    	            			driveNameCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "DriveName", -1), "");
+    	        			driveIdCol = table.getFieldIndex("Id");
+    	        			driveNameCol = table.getFieldIndex("Name");
+    	        			driveCreationTimeCol = table.getFieldIndex("CreationTime");
+    	        			if ( driveIdCol < 0 ) {
+    	            			driveIdCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "Id", -1), "");
     	        			}
-    	        			if ( driveCreationDateCol < 0 ) {
-    	            			driveCreationDateCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "CreationDate", -1), "");
+    	        			if ( driveNameCol < 0 ) {
+    	            			driveNameCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "Name", -1), "");
+    	        			}
+    	        			if ( driveCreationTimeCol < 0 ) {
+    	            			driveCreationTimeCol = table.addField(new TableField(TableField.DATA_TYPE_STRING, "CreationTime", -1), "");
     	        			}
     	        		}
     	        		else if ( googleDriveCommand == GoogleDriveCommandType.LIST ) {
@@ -2516,7 +2611,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		  	    		status, logLevel, warningLevel, warningCount, commandTag );
     	    	}
     	    	*/
-    	    	else if ( googleDriveCommand == GoogleDriveCommandType.DOWNLOAD ) {
+    	    	if ( googleDriveCommand == GoogleDriveCommandType.DOWNLOAD ) {
     	    		warningCount = doGoogleDriveDownload (
     	    			processor,
     	    			googleDriveSession,
@@ -2524,17 +2619,17 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	    			downloadFoldersGoogleDrivePaths, downloadFoldersDirectories,
     	    			status, logLevel, warningLevel, warningCount, commandTag );
     	    	}
-	    		/*
-    	    	else if ( s3Command == AwsS3CommandType.LIST_BUCKETS ) {
-    	    		warningCount = doS3ListBuckets (
+    	    	else if ( googleDriveCommand == GoogleDriveCommandType.LIST_DRIVES ) {
+    	    		warningCount = doGoogleDriveListDrives (
     	    			processor,
-    	    			s3,
-    	    			table, bucketNameCol, bucketCreationDateCol,
-    	    			listBucketsRegEx, ListBucketsCountProperty,
-    	    			status, logLevel, warningCount, commandTag );
+    	    			googleDriveSession,
+    	    			listDrivesRegEx,
+    	    			table, driveCreationTimeCol,
+    	    			driveIdCol, driveNameCol,
+    	    			ListDrivesCountProperty,
+    	    			status, logLevel, warningLevel, warningCount, commandTag );
     	    	}
-    	    	*/
-   	        	if ( googleDriveCommand == GoogleDriveCommandType.LIST ) {
+    	    	else if ( googleDriveCommand == GoogleDriveCommandType.LIST ) {
    	        		if ( !ListSharedWithMe.equalsIgnoreCase(_Only) ) {
    	        			// Get the list of files and folders that is not shared:
    	        			// - list these before shared files
@@ -2649,38 +2744,6 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	    	}
 
 		}
-		/*
-    	catch ( S3Exception e ) {
-  	    	if ( s3Command == AwsS3CommandType.COPY_OBJECTS ) {
-				message = "Unexpected error copying objects (" + e.awsErrorDetails().errorMessage() + ").";
-			}
-  	    	else if ( s3Command == AwsS3CommandType.DELETE_OBJECTS ) {
-				message = "Unexpected error deleting object (" + e.awsErrorDetails().errorMessage() + ").";
-			}
-  	    	else if ( s3Command == AwsS3CommandType.DOWNLOAD_OBJECTS ) {
-				message = "Unexpected error downloading object(s) (" + e.awsErrorDetails().errorMessage() + ").";
-			}
-  	    	else if ( s3Command == AwsS3CommandType.LIST_BUCKETS ) {
-				message = "Unexpected error listing buckets (" + e.awsErrorDetails().errorMessage() + ").";
-			}
-        	else if ( s3Command == AwsS3CommandType.LIST_OBJECTS ) {
-				message = "Unexpected error listing bucket objects (" + e.awsErrorDetails().errorMessage() + ").";
-        	}
-  	    	else if ( s3Command == AwsS3CommandType.UPLOAD_OBJECTS ) {
-				message = "Unexpected error uploading object(s) (" + e.awsErrorDetails().errorMessage() + ").";
-			}
-			else {
-				message = "Unexpected error for unknown S3 command (" + e.awsErrorDetails().errorMessage() + ": " + S3Command;
-			}
-			Message.printWarning ( warningLevel,
-				MessageUtil.formatMessageTag(commandTag, ++warningCount),routine, message );
-			Message.printWarning ( 3, routine, e );
-			status.addToLog(CommandPhaseType.RUN,
-				new CommandLogRecord(CommandStatusType.FAILURE,
-					message, "See the log file for details."));
-			throw new CommandException ( message );
-    	}
-    	*/
     	catch ( Exception e ) {
     		/*
   	    	if ( s3Command == AwsS3CommandType.COPY_OBJECTS ) {
@@ -2691,15 +2754,13 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			}
 			*/
   	    	if ( googleDriveCommand == GoogleDriveCommandType.DOWNLOAD ) {
-				message = "Unexpected error downloading files (" + e + ").";
+				message = "Unexpected error downloading Google Drive files (" + e + ").";
 			}
-  	    	/*
-  	    	else if ( s3Command == AwsS3CommandType.LIST_BUCKETS ) {
-				message = "Unexpected error listing buckets (" + e + ").";
+  	    	else if ( googleDriveCommand == GoogleDriveCommandType.LIST_DRIVES ) {
+				message = "Unexpected error listing Google Drive drives (" + e + ").";
 			}
-			*/
         	if ( googleDriveCommand == GoogleDriveCommandType.LIST ) {
-				message = "Unexpected error listing Google Drive (" + e + ").";
+				message = "Unexpected error listing Google Drive files (" + e + ").";
         	}
         	/*
   	    	else if ( s3Command == AwsS3CommandType.UPLOAD_OBJECTS ) {
@@ -2757,8 +2818,6 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			"SessionID",
 			"AuthenticationMethod",
 			"GoogleDriveCommand",
-			//"Profile",
-			//"Region",
 			//"Bucket",
 			// Copy.
 			//"CopyFiles",
@@ -2772,10 +2831,10 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			// Download.
 			"DownloadFolders",
 			"DownloadFiles",
-			// List buckets.
-			//"ListBucketsRegEx",
-			//"ListBucketsCountProperty",
-			// List files.
+			// List drives.
+			"ListDrivesRegEx",
+			"ListDrivesCountProperty",
+			// Lists.
 			"ListScope",
 			"ListFolderPath",
 			"ListRegEx",

@@ -110,13 +110,11 @@ private JTextField __DeleteFoldersMinDepth_JTextField = null;
 private JTextArea __DownloadFiles_JTextArea = null;
 private JTextArea __DownloadFolders_JTextArea = null;
 
-// List Buckets tab.
-/*
-private JTextField __ListBucketsRegEx_JTextField = null;
-private JTextField __ListBucketsCountProperty_JTextField = null;
-*/
+// List Drives tab.
+private JTextField __ListDrivesRegEx_JTextField = null;
+private JTextField __ListDrivesCountProperty_JTextField = null;
 
-// List Objects tab.
+// List tab.
 private SimpleJComboBox __ListScope_JComboBox = null;
 private JTextField __ListFolderPath_JTextField = null;
 private JTextField __ListRegEx_JTextField = null;
@@ -148,7 +146,7 @@ private boolean ignoreEvents = false; // Ignore events when initializing, to avo
 private JFrame __parent = null;
 
 /**
- * Google Drive session used to interact with services
+ * Google Drive session used to interact with services.
  */
 private GoogleDriveSession googleDriveSession = null;
 
@@ -424,9 +422,9 @@ private void checkInput () {
 	// Download.
 	String DownloadFolders = __DownloadFolders_JTextArea.getText().trim().replace("\n"," ");
 	String DownloadFiles = __DownloadFiles_JTextArea.getText().trim().replace("\n"," ");
-	// List buckets.
-	//String ListBucketsRegEx = __ListBucketsRegEx_JTextField.getText().trim();
-	//String ListBucketsCountProperty = __ListBucketsCountProperty_JTextField.getText().trim();
+	// List drives.
+	String ListDrivesRegEx = __ListDrivesRegEx_JTextField.getText().trim();
+	String ListDrivesCountProperty = __ListDrivesCountProperty_JTextField.getText().trim();
 	// List bucket objects.
 	String ListScope = __ListScope_JComboBox.getSelected();
 	String ListFolderPath = __ListFolderPath_JTextField.getText().trim();
@@ -487,16 +485,14 @@ private void checkInput () {
 	if ( (DownloadFiles != null) && !DownloadFiles.isEmpty() ) {
 		props.set ( "DownloadFiles", DownloadFiles );
 	}
-	/*
-	// List buckets.
-	if ( (ListBucketsRegEx != null) && !ListBucketsRegEx.isEmpty() ) {
-		props.set ( "ListBucketsRegEx", ListBucketsRegEx );
+	// List drives.
+	if ( (ListDrivesRegEx != null) && !ListDrivesRegEx.isEmpty() ) {
+		props.set ( "ListDrivesRegEx", ListDrivesRegEx );
 	}
-	if ( (ListBucketsCountProperty != null) && !ListBucketsCountProperty.isEmpty() ) {
-		props.set ( "ListBucketsCountProperty", ListBucketsCountProperty );
+	if ( (ListDrivesCountProperty != null) && !ListDrivesCountProperty.isEmpty() ) {
+		props.set ( "ListDrivesCountProperty", ListDrivesCountProperty );
 	}
-	*/
-	// List bucket objects.
+	// List.
 	if ( (ListScope != null) && !ListScope.isEmpty() ) {
 		props.set ( "ListScope", ListScope);
 	}
@@ -579,10 +575,10 @@ private void commitEdits () {
 	// Download.
 	String DownloadFolders = __DownloadFolders_JTextArea.getText().trim().replace("\n"," ");
 	String DownloadFiles = __DownloadFiles_JTextArea.getText().trim().replace("\n"," ");
-	// List buckets.
-	//String ListBucketsRegEx = __ListBucketsRegEx_JTextField.getText().trim();
-	//String ListBucketsCountProperty = __ListBucketsCountProperty_JTextField.getText().trim();
-	// List bucket objects.
+	// List drives.
+	String ListDrivesRegEx = __ListDrivesRegEx_JTextField.getText().trim();
+	String ListDrivesCountProperty = __ListDrivesCountProperty_JTextField.getText().trim();
+	// List.
 	String ListScope = __ListScope_JComboBox.getSelected();
 	String ListFolderPath = __ListFolderPath_JTextField.getText().trim();
 	String ListRegEx = __ListRegEx_JTextField.getText().trim();
@@ -616,10 +612,10 @@ private void commitEdits () {
 	// Download.
 	__command.setCommandParameter ( "DownloadFolders", DownloadFolders );
 	__command.setCommandParameter ( "DownloadFiles", DownloadFiles );
-	// List Buckets.
-	//__command.setCommandParameter ( "ListBucketsRegEx", ListBucketsRegEx );
-	//__command.setCommandParameter ( "ListBucketsCountProperty", ListBucketsCountProperty );
-	// List Objects.
+	// List drives.
+	__command.setCommandParameter ( "ListDrivesRegEx", ListDrivesRegEx );
+	__command.setCommandParameter ( "ListDrivesCountProperty", ListDrivesCountProperty );
+	// List.
 	__command.setCommandParameter ( "ListScope", ListScope );
 	__command.setCommandParameter ( "ListFolderPath", ListFolderPath );
 	__command.setCommandParameter ( "ListRegEx", ListRegEx );
@@ -994,42 +990,40 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     JGUIUtil.addComponent(download_JPanel, new SimpleJButton ("Edit","EditDownloadFiles",this),
         3, ++yDownload, 4, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST );
 
-    /*
-    // Panel for 'List Buckets' parameters.
-    int yListBuckets = -1;
-    JPanel listBuckets_JPanel = new JPanel();
-    listBuckets_JPanel.setLayout( new GridBagLayout() );
-    __main_JTabbedPane.addTab ( "List Buckets", listBuckets_JPanel );
+    // Panel for 'List Drives' parameters.
+    int yListDrives = -1;
+    JPanel listDrives_JPanel = new JPanel();
+    listDrives_JPanel.setLayout( new GridBagLayout() );
+    __main_JTabbedPane.addTab ( "List Drives", listDrives_JPanel );
 
-    JGUIUtil.addComponent(listBuckets_JPanel, new JLabel ("List all buckets that are visible to the user based on the profile."),
-		0, ++yListBuckets, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listBuckets_JPanel, new JLabel ("Use * in the regular expression as wildcards to filter the results."),
-		0, ++yListBuckets, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listBuckets_JPanel, new JLabel ("See the 'Output' tab to specify the output table and/or file for the bucket list."),
-		0, ++yListBuckets, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listBuckets_JPanel, new JSeparator(SwingConstants.HORIZONTAL),
-    	0, ++yListBuckets, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(listDrives_JPanel, new JLabel ("List all Google Drive shared drives that are visible to the user based on credentials."),
+		0, ++yListDrives, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(listDrives_JPanel, new JLabel ("Use * in the regular expression as wildcards to filter the results."),
+		0, ++yListDrives, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(listDrives_JPanel, new JLabel ("See the 'Output' tab to specify the output table and/or file for the bucket list."),
+		0, ++yListDrives, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(listDrives_JPanel, new JSeparator(SwingConstants.HORIZONTAL),
+    	0, ++yListDrives, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST);
 
-    JGUIUtil.addComponent(listBuckets_JPanel, new JLabel ( "Regular expression:"),
-        0, ++yListBuckets, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
-    __ListBucketsRegEx_JTextField = new JTextField ( "", 30 );
-    __ListBucketsRegEx_JTextField.setToolTipText("Regular expression to filter results, default=glob (*) style");
-    __ListBucketsRegEx_JTextField.addKeyListener ( this );
-    JGUIUtil.addComponent(listBuckets_JPanel, __ListBucketsRegEx_JTextField,
-        1, yListBuckets, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listBuckets_JPanel, new JLabel ( "Optional - regular expression filter (default=none)."),
-        3, yListBuckets, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(listDrives_JPanel, new JLabel ( "Regular expression:"),
+        0, ++yListDrives, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
+    __ListDrivesRegEx_JTextField = new JTextField ( "", 30 );
+    __ListDrivesRegEx_JTextField.setToolTipText("Regular expression to filter results, default=glob (*) style");
+    __ListDrivesRegEx_JTextField.addKeyListener ( this );
+    JGUIUtil.addComponent(listDrives_JPanel, __ListDrivesRegEx_JTextField,
+        1, yListDrives, 2, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(listDrives_JPanel, new JLabel ( "Optional - regular expression filter (default=none)."),
+        3, yListDrives, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
-    JGUIUtil.addComponent(listBuckets_JPanel, new JLabel("List buckets count property:"),
-        0, ++yListBuckets, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
-    __ListBucketsCountProperty_JTextField = new JTextField ( "", 30 );
-    __ListBucketsCountProperty_JTextField.setToolTipText("Specify the property name for the object list result size, can use ${Property} notation");
-    __ListBucketsCountProperty_JTextField.addKeyListener ( this );
-    JGUIUtil.addComponent(listBuckets_JPanel, __ListBucketsCountProperty_JTextField,
-        1, yListBuckets, 1, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listBuckets_JPanel, new JLabel ( "Optional - processor property to set as bucket count." ),
-        3, yListBuckets, 3, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-        */
+    JGUIUtil.addComponent(listDrives_JPanel, new JLabel("List drives count property:"),
+        0, ++yListDrives, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
+    __ListDrivesCountProperty_JTextField = new JTextField ( "", 30 );
+    __ListDrivesCountProperty_JTextField.setToolTipText("Specify the property name for the object list result size, can use ${Property} notation");
+    __ListDrivesCountProperty_JTextField.addKeyListener ( this );
+    JGUIUtil.addComponent(listDrives_JPanel, __ListDrivesCountProperty_JTextField,
+        1, yListDrives, 1, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(listDrives_JPanel, new JLabel ( "Optional - processor property to set as bucket count." ),
+        3, yListDrives, 3, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
     // Panel for 'List' parameters:
     // - this includes filtering
@@ -1488,10 +1482,10 @@ private void refresh () {
 	// Download.
 	String DownloadFolders = "";
 	String DownloadFiles = "";
-	// List buckets.
-	String ListBucketsRegEx = "";
-	String ListBucketsCountProperty = "";
-	// List bucket objects.
+	// List drives.
+	String ListDrivesRegEx = "";
+	String ListDrivesCountProperty = "";
+	// List.
 	String ListScope = "";
 	String ListFolderPath = "";
 	String ListRegEx = "";
@@ -1529,10 +1523,10 @@ private void refresh () {
 		// Download.
 		DownloadFolders = parameters.getValue ( "DownloadFolders" );
 		DownloadFiles = parameters.getValue ( "DownloadFiles" );
-		// List buckets.
-		ListBucketsRegEx = parameters.getValue ( "ListBucketsRegEx" );
-		ListBucketsCountProperty = parameters.getValue ( "ListBucketsCountProperty" );
-		// List bucket objects.
+		// List drives.
+		ListDrivesRegEx = parameters.getValue ( "ListDrivesRegEx" );
+		ListDrivesCountProperty = parameters.getValue ( "ListDrivesCountProperty" );
+		// List.
 		ListScope = parameters.getValue ( "ListScope" );
 		ListFolderPath = parameters.getValue ( "ListFolderPath" );
 		ListRegEx = parameters.getValue ( "ListRegEx" );
@@ -1644,14 +1638,12 @@ private void refresh () {
         if ( DownloadFiles != null ) {
             __DownloadFiles_JTextArea.setText ( DownloadFiles );
         }
-        /*
-        if ( ListBucketsRegEx != null ) {
-            __ListBucketsRegEx_JTextField.setText ( ListBucketsRegEx );
+        if ( ListDrivesRegEx != null ) {
+            __ListDrivesRegEx_JTextField.setText ( ListDrivesRegEx );
         }
-        if ( ListBucketsCountProperty != null ) {
-            __ListBucketsCountProperty_JTextField.setText ( ListBucketsCountProperty );
+        if ( ListDrivesCountProperty != null ) {
+            __ListDrivesCountProperty_JTextField.setText ( ListDrivesCountProperty );
         }
-        */
 		if ( JGUIUtil.isSimpleJComboBoxItem(__ListScope_JComboBox, ListScope,JGUIUtil.NONE, null, null ) ) {
 			__ListScope_JComboBox.select ( ListScope );
 		}
@@ -1827,11 +1819,9 @@ private void refresh () {
 	// Download.
 	DownloadFolders = __DownloadFolders_JTextArea.getText().trim().replace("\n"," ");
 	DownloadFiles = __DownloadFiles_JTextArea.getText().trim().replace("\n"," ");
-	/*
-	// List buckets.
-	ListBucketsRegEx = __ListBucketsRegEx_JTextField.getText().trim();
-	ListBucketsCountProperty = __ListBucketsCountProperty_JTextField.getText().trim();
-	*/
+	// List drives.
+	ListDrivesRegEx = __ListDrivesRegEx_JTextField.getText().trim();
+	ListDrivesCountProperty = __ListDrivesCountProperty_JTextField.getText().trim();
 	// List files and folders.
 	ListScope = __ListScope_JComboBox.getSelected();
 	ListFolderPath = __ListFolderPath_JTextField.getText().trim();
@@ -1869,10 +1859,10 @@ private void refresh () {
 	// Download.
 	props.add ( "DownloadFolders=" + DownloadFolders );
 	props.add ( "DownloadFiles=" + DownloadFiles );
-	// List buckets.
-	props.add ( "ListBucketsRegEx=" + ListBucketsRegEx );
-	props.add ( "ListBucketsCountProperty=" + ListBucketsCountProperty );
-	// List bucket objects.
+	// List drives.
+	props.add ( "ListDrivesRegEx=" + ListDrivesRegEx );
+	props.add ( "ListDrivesCountProperty=" + ListDrivesCountProperty );
+	// List.
 	props.add ( "ListScope=" + ListScope );
 	props.add ( "ListFolderPath=" + ListFolderPath );
 	props.add ( "ListRegEx=" + ListRegEx );
@@ -1947,13 +1937,11 @@ private void setTabForGoogleDriveCommand() {
 	if ( command.equalsIgnoreCase("" + GoogleDriveCommandType.DOWNLOAD) ) {
 		__main_JTabbedPane.setSelectedIndex(0);
 	}
-	/*
-	else if ( command.equalsIgnoreCase("" + GoogleDriveCommandType.LIST_BUCKETS) ) {
-		__main_JTabbedPane.setSelectedIndex(3);
-	}
-	*/
-	if ( command.equalsIgnoreCase("" + GoogleDriveCommandType.LIST) ) {
+	else if ( command.equalsIgnoreCase("" + GoogleDriveCommandType.LIST_DRIVES) ) {
 		__main_JTabbedPane.setSelectedIndex(1);
+	}
+	else if ( command.equalsIgnoreCase("" + GoogleDriveCommandType.LIST) ) {
+		__main_JTabbedPane.setSelectedIndex(2);
 	}
 	/*
 	else if ( command.equalsIgnoreCase("" + AwsS3CommandType.UPLOAD_OBJECTS) ) {

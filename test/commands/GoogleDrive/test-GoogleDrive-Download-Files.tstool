@@ -1,7 +1,7 @@
 StartLog(LogFile="results/test-GoogleDrive-Download-Files.tstool.log")
 # Test downloading file and folder objects:
 # - use the Google Drive/My Drive/tstool-googledrive-plugin/test/commands/GoogleDrive/data folder for source files.
-# - use the bucket folder tstool-aws-plugin/test/commands/AwsS3/test-GoogleDrive-Download-Files
+# - use the bucket folder tstool-googledrive-plugin/test/commands/GoogleDrive/test-GoogleDrive-Download-Files
 # - this test first uploads the objects and then downloads
 # - the downloaded files are saved to the results folder and should match the original data files
 #
