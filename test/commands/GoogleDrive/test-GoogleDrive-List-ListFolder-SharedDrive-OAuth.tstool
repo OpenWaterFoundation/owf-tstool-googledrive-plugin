@@ -21,8 +21,9 @@ AwsS3(S3Command="UploadObjects",Region="us-west-2",Bucket="test.openwaterfoundat
 */
 # SetDebugLevel(LogFileLevel=1)
 # List a specific folder.
-# GoogleDrive(SessionID="TSTool",AuthenticationMethod="ServiceAccountKey",GoogleDriveCommand="List",ListScope="Folder",ListFolderPath="${TestGoogleDriveFolder}/",ListCountProperty="TestListCount",OutputTableID="TestListFolder")
-GoogleDrive(SessionID="TSTool",AuthenticationMethod="OAuth",GoogleDriveCommand="List",ListScope="Folder",ListFolderPath="/id/0ALqyffZU8zvKUk9PVA/",ListCountProperty="TestListCount",OutputTableID="TestListFolder")
+GoogleDrive(SessionID="TSTool",AuthenticationMethod="ServiceAccountKey",GoogleDriveCommand="List",ListScope="Folder",ListFolderPath="${TestGoogleDriveFolder}/",ListCountProperty="TestListCount",OutputTableID="TestListFolder")
+# This lists the contents under the shared drive.
+# GoogleDrive(SessionID="TSTool",AuthenticationMethod="OAuth",GoogleDriveCommand="List",ListScope="Folder",ListFolderPath="/id/0ALqyffZU8zvKUk9PVA/",ListCountProperty="TestListCount",OutputTableID="TestListFolder")
 # SetDebugLevel(ScreenLevel=0,LogFileLevel=0)
 # The following works for the OWF developer.
 If(Name="IfTestListCount",Condition="${TestListCount} < 5")

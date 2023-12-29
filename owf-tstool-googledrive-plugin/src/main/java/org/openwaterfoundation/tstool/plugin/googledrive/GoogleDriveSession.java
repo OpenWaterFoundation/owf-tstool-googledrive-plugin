@@ -28,21 +28,24 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.PosixFilePermission;
 import java.security.GeneralSecurityException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
@@ -50,11 +53,9 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
-import com.google.auth.ServiceAccountSigner;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
-import com.google.common.collect.ImmutableList;
 
 import RTi.Util.IO.IOUtil;
 import RTi.Util.Message.Message;
@@ -64,27 +65,27 @@ import RTi.Util.Message.Message;
  * See Google Java Quickstart: https://developers.google.com/drive/api/quickstart/java
  */
 public class GoogleDriveSession {
-	
+
 	/**
 	 * Session ID, which is appended to the credentials file name.
 	 */
 	private String sessionId = null;
-	
+
 	/**
 	 * Authentication method.
 	 */
 	private GoogleDriveAuthenticationMethodType authenticationMethod = null;
-	
+
 	/**
 	 * Path to the credentials file.
 	 */
 	private String credentialsFilePath = null;
-	
+
 	/**
 	 * Whether the credentials are OK and the session is authenticated
 	 */
 	private boolean isSessionAuthenticated = false;
-	
+
 	/**
 	 * The error if credentials are not OK.
 	 */
@@ -99,7 +100,7 @@ public class GoogleDriveSession {
 	 * Path to the tokens folder, used by the Google Drive API to cache and optimize the use of tokens.
 	 */
 	private String tokensFolderPath = null;
-	
+
 	/**
 	 * Old-style google credential, used to authenticate client, etc.
 	 * The credentials are applicable throughout the session.
@@ -110,25 +111,25 @@ public class GoogleDriveSession {
 	 * Newer credential.
 	 */
 	private GoogleCredentials credentials = null;
-	
+
 	// The following are from the Google Drive Quick Start:
 	//   https://developers.google.com/drive/api/quickstart/java
-	
+
 	/**
 	 * Application name.
 	 */
 	private final String APPLICATION_NAME = "TSTool";
-	
+
 	/**
 	 * Global instance of the JSON factory.
 	 */
 	private final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
-	  
+
 	/**
 	 * Folder to store authorization tokens for this application.
 	 */
 	//private final String TOKENS_DIRECTORY_PATH = "";
-	
+
 	/**
 	 * Global instance of the scopes required by this quickstart.
 	 * If modifying these scopes, delete your previously saved tokens/ folder.
@@ -141,7 +142,7 @@ public class GoogleDriveSession {
 	//private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
 
 	private NetHttpTransport httpTransport = null;
-	
+
 	/**
 	 * Create a new session, which holds the credential.
 	 * @param sessionId the session ID to match the credentials file
@@ -150,25 +151,26 @@ public class GoogleDriveSession {
 	public GoogleDriveSession ( String sessionId, GoogleDriveAuthenticationMethodType authenticationMethod )
 	throws FileNotFoundException, IOException, GeneralSecurityException {
 		String routine = this.getClass().getSimpleName();
-		
+
 		// Build a new authorized API client service.
 		this.sessionId = sessionId;
 		this.authenticationMethod = authenticationMethod;
 	    this.httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-	    
+
 	    // Set the paths to credentials file and tokens folder.
 		if ( IOUtil.isUNIXMachine() ) {
 			// Standard folder:
-			// - HOME/.googledrive/credentials.json
+			// - $HOME/.tstool/GoogleDrive/
+			// - this will exist across all TSTool installations
 			String HOME = System.getenv("HOME");
 			if ( (HOME != null) && !HOME.isEmpty() ) {
 				if ( this.authenticationMethod == GoogleDriveAuthenticationMethodType.OAUTH ) {
-					this.credentialsFilePath = HOME + "/.googledrive/oauth2-credentials-" + this.sessionId + ".json";
+					this.credentialsFilePath = HOME + "/.tstool/GoogleDrive/oauth2-credentials-" + this.sessionId + ".json";
 				}
 				else if ( this.authenticationMethod == GoogleDriveAuthenticationMethodType.SERVICE_ACCOUNT_KEY ) {
-					this.credentialsFilePath = HOME + "/.googledrive/api-key-" + sessionId + ".json";
+					this.credentialsFilePath = HOME + "/.tstool/GoogleDrive/api-key-" + sessionId + ".json";
 				}
-				this.tokensFolderPath = HOME + "/.googledrive/tokens";
+				this.tokensFolderPath = HOME + "/.tstool/GoogleDrive/tokens";
 			}
 		}
 		else {
@@ -202,7 +204,33 @@ public class GoogleDriveSession {
 			this.problemRecommendation = "Verify that the credentials file has readable permissions.";
 			fileExists = false;
 		}
-		
+
+		if ( file.exists() && IOUtil.isUNIXMachine() ) {
+			// For security purposes, make sure that the credentials files are mode 600 so only the user can read.
+			// This does not need to be checked for Windows because the LOCALAPPDATA folder is owned by the user.
+			Path path = Paths.get ( this.credentialsFilePath );
+			Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(path);
+			if ( permissions.contains(PosixFilePermission.GROUP_READ) ||
+				permissions.contains(PosixFilePermission.OTHERS_READ) ) {
+				this.isSessionAuthenticated = false;
+				this.problem = "Credentials file is readable by group and/or other (not secure).";
+				this.problemRecommendation = "Change the permissions using:  chmod 600 " + this.credentialsFilePath;
+				// Don't try to create the credentials.
+				return;
+			}
+			// Check the tokens folder.
+			path = Paths.get ( this.tokensFolderPath );
+			permissions = Files.getPosixFilePermissions(path);
+			if ( permissions.contains(PosixFilePermission.GROUP_READ) ||
+				permissions.contains(PosixFilePermission.OTHERS_READ) ) {
+				this.isSessionAuthenticated = false;
+				this.problem = "Credentials tokens foler is readable by group and/or other (not secure).";
+				this.problemRecommendation = "Change the permissions using:  chmod 600 " + this.tokensFolderPath;
+				// Don't try to create the credentials.
+				return;
+			}
+		}
+
 		// Create the credential.
 		if ( fileExists ) {
 			Message.printStatus(2, routine, "Google Drive credentials file exists: " + this.credentialsFilePath);
@@ -235,7 +263,7 @@ public class GoogleDriveSession {
 			this.isSessionAuthenticated = false;
 		}
 	}
-	
+
 	/**
 	 * Creates an authorized Credential or GoogleCredentials object,
 	 * depending on the authentication method.
@@ -269,7 +297,7 @@ public class GoogleDriveSession {
 				return;
 				//throw new FileNotFoundException ( "Could not open resource: " + this.credentialsFilePath );
 			}
-		
+
 			GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
 
 			// Build flow and trigger user authorization request.
@@ -303,7 +331,7 @@ public class GoogleDriveSession {
 					". Refreshshing (may prompt).");
 				credential.refreshToken();
 			}
-		
+
 		}
 		else if ( this.authenticationMethod == GoogleDriveAuthenticationMethodType.SERVICE_ACCOUNT_KEY ) {
 			// Open the stream to the service account key credentials file.
@@ -322,6 +350,7 @@ public class GoogleDriveSession {
 
 			boolean doOld = false;
 			if ( doOld ) {
+				/*
 				credential = GoogleCredential.fromStream(in).createScoped(SCOPES);
 				if ( credential.getAccessToken() == null ) {
 					Message.printWarning(2, routine, "The Google Drive access token is null." );
@@ -340,6 +369,7 @@ public class GoogleDriveSession {
 						Instant.ofEpochMilli(credential.getExpirationTimeMilliseconds()), ZoneId.systemDefault());
 					Message.printWarning(2, routine, "The Google Drive access token expired on " + expiration);
 				}
+				*/
 			}
 			else {
 				// Newer API code.
@@ -442,7 +472,7 @@ public class GoogleDriveSession {
 
 	/**
 	 * Return the problem if areCredentialsOk is false.
-	 * @return the problem description 
+	 * @return the problem description
 	 */
 	public String getProblem () {
 		return this.problem;
@@ -450,7 +480,7 @@ public class GoogleDriveSession {
 
 	/**
 	 * Return the problem recommendation if areCredentialsOk is false.
-	 * @return the problem recommendation 
+	 * @return the problem recommendation
 	 */
 	public String getProblemRecommendation () {
 		return this.problemRecommendation;
