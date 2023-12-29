@@ -185,10 +185,12 @@ and then run in batch mode with the same OAuth credentials on the device.
 5.  Click ***Create***. The OAuth client created screen appears, showing your new Client ID and Client secret.
 6.  Click ***OK***. The newly created credential appears under OAuth 2.0 Client IDs.
     Save the downloaded JSON file for the desktop application.
-    For example, save in `C:/Users/user/AppData/Local/TSTool/GoogleDrive/oauth2-credentials-xxxxx.json`,
-    which is a folder that is only visible to the specific user.
-    Specify `xxxxx` as a name that matches the OAuth client ID and will be specified as the
+    Specify `xxxxx` as a name that is consistent with the OAuth client ID and will be specified as the
     TSTool [`GoogleDrive`](../command-ref/GoogleDrive/GoogleDrive.md) command `SessionId` parameter.
+    *   Windows:  `%APPDATALOCAL%\TSTool\GoogleDrive\oauth2-credentials-xxxxx.json`,
+        which is a folder that is only visible to the specific user.
+    *   Linux:  `$HOME/.tstool/GoogleDrive/oauth2-credentials-xxxxx.json`
+        (file must have permissions mode of `600`).
 
 The configuration that was created above can be reviewed and edited from the Google Cloud console.
 
@@ -199,17 +201,18 @@ for example automated processes that run on a schedule.
 Each service account must have an email account,
 which is used for identification, typically automatically assigned during the configuration, as described below.
 
-**Important:  A service account is treated as a separate user.
+**Important:  A service account is treated as a separate user separate from the organization's domain.**
 Therefore, in order for the service account to access files,
-the files (or folders) must be shared with the service account by
-sharing specific items or use a shared drive that the service account can access.
-The service account email can be used when sharing.**
+the files (or folders) must be shared with the service account:
+
+*   share files and folders with the service account email
+*   add the service account user to a shared drive using the service account email
 
 The following instructions were created using multiple resources.
 The Google Cloud Console views may vary depending on the the sequence of pages that are used.
 
 In the [Google Cloud Console](https://console.cloud.google.com/apis/dashboard),
-select ***Enable APIS AND SERVICES*** and then ***Google Workspace*** and then **Google Drive API***.
+select ***Enable APIS AND SERVICES*** and then ***Google Workspace*** and then ***Google Drive API***.
 
 ***API / Service Details / Google Drive API*** web page,
 click on ***CREATE CREDENTIALS / Service Account***.
@@ -250,7 +253,9 @@ Next, generate the service account key JSON:
 3.  Navigate to the ***Keys*** tab and click on ***Add Key.***
 4.  Choose the JSON key type and click ***Create***.
     This will download a JSON file containing the credentials for the service account.
-5.  Move the file to the following location, which is the default for the TSTool Google Drive plugin:
+5.  Move the file to the following location, which is the default for the TSTool Google Drive plugin.
+    The value of `xxxxx` should be consistent with the service account name and will be specified using the
+    TSTool [`GoogleDrive`](../command-ref/GoogleDrive/GoogleDrive.md) command `SessionId` parameter).
     *   Windows:  `%APPDATALOCAL%\TSTool\GoogleDrive\api-key-xxxxx.json`
-        (where `xxxxx` is consistent with the service account name and will be specified using the
-        TSTool [`GoogleDrive`](../command-ref/GoogleDrive/GoogleDrive.md) command `SessionId` parameter).
+    *   Linux:  `$HOME/.tstool/GoogleDrive/api-key-xxxxx.json`
+        (file must have permissions mode of `600`).

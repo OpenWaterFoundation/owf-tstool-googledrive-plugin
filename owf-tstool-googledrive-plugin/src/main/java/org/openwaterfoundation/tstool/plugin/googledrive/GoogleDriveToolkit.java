@@ -22,7 +22,6 @@ NoticeEnd */
 
 package org.openwaterfoundation.tstool.plugin.googledrive;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -92,29 +91,94 @@ public class GoogleDriveToolkit {
 		if ( debug ) {
 		 	Message.printStatus ( 2, routine, "Getting Google Drive ID for file path \"" + googleDriveFilePath + "\"." );
 		}
-		// First get the ID for the parent folder:
-		// - make sure to convert to forward slashes
-		File file = new File(googleDriveFilePath);
-		String parentFolderPath = file.getParent().replace("\\", "/");
-		if ( debug ) {
-		 	Message.printStatus ( 2, routine, "Getting Google Drive ID for parent folder path \"" + parentFolderPath + "\"." );
+
+		if ( googleDriveFilePath.endsWith("/") ) {
+			// Remove the trailing slash.
+			googleDriveFilePath = googleDriveFilePath.substring(0, googleDriveFilePath.length() - 1);
 		}
-		String parentFolderId = getFolderIdForPath ( driveService, parentFolderPath );
-		if ( parentFolderId == null ) {
-   			String message = "Cannot get Google Drive ID for parent folder \"" + parentFolderPath + "\".";
-		 	Message.printWarning ( 3, routine, message );
-			return null;
+
+		// Google Drive identifier for the file to download.
+		String fileId = null;
+		// Need to get the parent folder ID when using a path.
+		String parentFolderId = null;
+
+		StringBuilder q = null;
+   		boolean listTrashed = false;
+		String parentFolderPath = null;
+		// File name is the end of the path.
+		String fileName = null;
+		if ( googleDriveFilePath.startsWith("/id/") ) {
+			// Specifying the Google Drive folder ID to list.
+			fileId = googleDriveFilePath.substring(4);
+			return fileId;
 		}
-		else {
-			if ( debug ) {
-		 		Message.printStatus ( 2, routine, "Parent folder path \"" + parentFolderPath + "\" has ID \"" +
-		 			parentFolderId + "\"." );
+		else if ( pathStartsWithSharedWithMe(googleDriveFilePath) ) {
+			// Requested a path to a 'Shared with me' path:
+			// - remove the '/Shared with me' part
+			parentFolderPath = pathRemoveFirst(googleDriveFilePath);
+			// Parent is everything but the trailing file.
+			parentFolderPath = pathRemoveLast(parentFolderPath);
+			parentFolderId = getFolderIdForSharedWithMePath ( driveService, parentFolderPath );
+			fileName = pathGetLast(googleDriveFilePath);
+			if ( parentFolderId == null ) {
+   				String message = "Cannot get Google Drive ID for 'Shared with me' folder \"" + parentFolderPath + "\".";
+		 		Message.printWarning ( 3, routine, message );
+				return null;
+			}
+			else {
+				// Will search for the file in the folder below.
+				//q = new StringBuilder("'" + parentFolderId + "' in parents and trashed=" + listTrashed );
+				q = new StringBuilder("name='" + fileName + "' and '" + parentFolderId + "' in parents and trashed=" + listTrashed );
 			}
 		}
+		else if ( pathStartsWithSharedDrives(googleDriveFilePath) ) {
+			// Requested a path to a 'Shared drives' path:
+			// - remove the '/Shared drives' part
+			parentFolderPath = pathRemoveFirst(googleDriveFilePath);
+			// Parent is everything but the trailing file.
+			parentFolderPath = pathRemoveLast(parentFolderPath);
+			parentFolderId = getFolderIdForSharedDrivesPath ( driveService, parentFolderPath );
+			fileName = pathGetLast(googleDriveFilePath);
+			if ( parentFolderId == null ) {
+   				String message = "Cannot get Google Drive ID for 'Shared drives' folder \"" + parentFolderPath + "\".";
+		 		Message.printWarning ( 3, routine, message );
+				return null;
+			}
+			else {
+				// Will search for the file in the folder below.
+				//q = new StringBuilder("'" + parentFolderId + "' in parents and trashed=" + listTrashed );
+				q = new StringBuilder("name='" + fileName + "' and '" + parentFolderId + "' in parents and trashed=" + listTrashed );
+			}
+		}
+		else {
+			// Not a path for a shared folder so assume it is in 'My Drive'.
+			if ( pathStartsWithMyDrive(googleDriveFilePath) ) {
+				// Remove the '/My Drive' part
+				parentFolderPath = pathRemoveFirst(googleDriveFilePath);
+			}
+			else {
+				parentFolderPath = googleDriveFilePath;
+			}
+			// Parent is everything but the trailing file.
+			parentFolderPath = pathRemoveLast(parentFolderPath);
+			parentFolderId = getFolderIdForPath ( driveService, parentFolderPath );
+			fileName = pathGetLast(googleDriveFilePath);
+			if ( parentFolderId == null ) {
+   				String message = "Cannot get Google Drive ID for 'My Drive' folder \"" + parentFolderPath + "\".";
+		 		Message.printWarning ( 3, routine, message );
+				return null;
+			}
+			else {
+				// Will search for the file in the folder below.
+				//q = new StringBuilder("'" + parentFolderId + "' in parents and trashed=" + listTrashed );
+				q = new StringBuilder("name='" + fileName + "' and '" + parentFolderId + "' in parents and trashed=" + listTrashed );
+			}
+		}
+
+   		String message = "Getting list of files in parent folder using q = \"" + q + "\".";
+
 		// Then list the files in the folder to find a matching name.
    		FileList result = null;
-   		boolean listTrashed = false;
-   		StringBuilder q = new StringBuilder("'" + parentFolderId + "' in parents and trashed=" + listTrashed );
    		try {
    			result = driveService
    				// Request to execute.
@@ -131,6 +195,11 @@ public class GoogleDriveToolkit {
    				// Set the folder to list:
    				// See: https://developers.google.com/drive/api/guides/search-files
    				.setQ(q.toString())
+                // Whether files from My Drive and shared drives should be listed in the result:
+   			    // - not available in the API here?
+			    .setIncludeItemsFromAllDrives(true)
+			    // Whether the application supports My Drive and shared drives.
+			    .setSupportsAllDrives(true)
    				// Page size for returned files.
        			//.setPageSize(10)
        			// Which fields to include in the response:
@@ -151,18 +220,22 @@ public class GoogleDriveToolkit {
    				Message.printStatus(2, routine, "No files found.");
    			}
    			else {
+   				/*
    				// Have files and folders to process.
    				for ( com.google.api.services.drive.model.File googleFile : files ) {
-   					if ( googleFile.getName().equals(file.getName()) ) {
+   					if ( googleFile.getName().equals(googleFile.getName()) ) {
    						// Have a matching file:
    						// - return its ID
    						return googleFile.getId();
    					}
    				}
+   				*/
+   				// Single matching file should have been returned.
+				return files.get(0).getId();
    			}
    		}
    		catch ( Exception e ) {
-   			String message = "Error listing Google Drive files in parent folder \"" + parentFolderPath + "\".";
+   			message = "Error listing Google Drive files in parent folder \"" + parentFolderPath + "\".";
 		 	Message.printWarning ( 3, routine, message );
 		 	Message.printWarning ( 3, routine, e );
    		}
@@ -196,7 +269,8 @@ public class GoogleDriveToolkit {
 			folderPath = folderPath.substring(MY_DRIVE.length());
 		}
 		else {
-			// No leading "My Drive" variation.
+			// No leading "My Drive" variation:
+			// - path was specified without My Drive, which defaults to files in My Drive
 		}
 
 		if ( folderPath.startsWith("/") ) {
@@ -336,7 +410,7 @@ public class GoogleDriveToolkit {
    			.setFields("*");
 		// Invoke the remote operation.
 		result0 = request.execute();
-		
+
 		if ( (result0 == null) || (result0.size() == 0) ) {
 			// No shared drives so return null;
 			Message.printStatus(2, routine, "Could not match shared drive \"" + folderNames[1] + "\".");
@@ -359,6 +433,11 @@ public class GoogleDriveToolkit {
             // Only the file ID is needed.
             FileList result = driveService.files().list()
                 .setQ(q)
+                // Whether files from My Drive and shared drives should be listed in the result:
+   			    // - not available in the API here?
+			    .setIncludeItemsFromAllDrives(true)
+			    // Whether the application supports My Drive and shared drives.
+			    .setSupportsAllDrives(true)
                 .setFields("files(id)")
                 .execute();
 
@@ -541,6 +620,11 @@ public class GoogleDriveToolkit {
    		com.google.api.services.drive.model.File folder = driveService.files()
    			.get(folderId)
    			.setFields("*")
+			// Whether files from My Drive and shared drives should be listed in the result:
+   			// - not available in the API here?
+			//.setIncludeItemsFromAllDrives(true)
+			// Whether the application supports My Drive and shared drives.
+			.setSupportsAllDrives(true)
    			.execute();
         if ( debug ) {
         	Message.printStatus(2,routine,"Google folder for ID=" + folder);
@@ -564,6 +648,11 @@ public class GoogleDriveToolkit {
             folder = driveService.files()
             	.get(parentId)
             	.setFields("*")
+            	// Whether files from My Drive and shared drives should be listed in the result:
+   			    // - not available in the API here?
+			    //.setIncludeItemsFromAllDrives(true)
+			    // Whether the application supports My Drive and shared drives.
+			    .setSupportsAllDrives(true)
             	.execute();
             parentFolders.add(folder.getName());
             if ( debug ) {
@@ -578,6 +667,89 @@ public class GoogleDriveToolkit {
         }
         return parentFoldersSorted;
     }
+    
+    /**
+     * Remove the first part of a path and return the remaining path.
+     * @return the path after removing the first part
+     */
+	private String pathRemoveFirst ( String path ) {
+		// Save the original.
+		String pathOrig = path;
+		// If the path starts with / remove it so that have a consistent start.
+		if ( path.startsWith("/") ) {
+			path = path.substring(1);
+		}
+		// Find the first /.
+		int pos = path.indexOf("/");
+		if ( pos < 0 ) {
+			// Did not have any parts.  Return the original path.
+			return pathOrig;
+		}
+		else {
+			// Return the string including the slash.
+			return path.substring(pos);
+		}
+	}
+
+    /**
+     * Get the last part of a path (e.g., the file name).
+     * @return the last part of the path
+     */
+	private String pathGetLast ( String path ) {
+		// Save the original.
+		String pathOrig = path;
+		// If the path ends with / remove it so that have a consistent end.
+		if ( path.endsWith("/") ) {
+			path = path.substring(0, (path.length() - 1) );
+		}
+		// Find the last /.
+		int pos = path.lastIndexOf("/");
+		if ( pos < 0 ) {
+			// Did not have any parts.  Return the original path.
+			return pathOrig;
+		}
+		else {
+			// Return the last part.
+			return path.substring(pos + 1);
+		}
+	}
+
+    /**
+     * Remove the last part of a path and return the remaining path.
+     * @return the path after removing the last part
+     */
+	private String pathRemoveLast ( String path ) {
+		// Save the original.
+		String pathOrig = path;
+		// If the path ends with / remove it so that have a consistent end.
+		if ( path.endsWith("/") ) {
+			path = path.substring(0, (path.length() - 1) );
+		}
+		// Find the last /.
+		int pos = path.lastIndexOf("/");
+		if ( pos < 0 ) {
+			// Did not have any parts.  Return the original path.
+			return pathOrig;
+		}
+		else {
+			// Return the string without the trailing the slash.
+			return path.substring(0, pos);
+		}
+	}
+
+	/**
+	 * Determine whether the path starts with '/My Drive' or a variation.
+	 * @return true if a "My Drive" path
+	 */
+	public boolean pathStartsWithMyDrive ( String folderPath ) {
+		String slashMyDrive = "/" + MY_DRIVE;
+		if ( folderPath.startsWith(MY_DRIVE) || folderPath.startsWith(slashMyDrive) ) {
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
 	/**
 	 * Determine whether the path starts with '/Shared drives' or a variation.

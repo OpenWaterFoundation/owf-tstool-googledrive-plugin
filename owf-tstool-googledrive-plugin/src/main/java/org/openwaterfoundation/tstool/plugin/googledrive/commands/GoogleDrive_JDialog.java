@@ -109,6 +109,7 @@ private JTextField __DeleteFoldersMinDepth_JTextField = null;
 // Download tab.
 private JTextArea __DownloadFiles_JTextArea = null;
 private JTextArea __DownloadFolders_JTextArea = null;
+private JTextField __DownloadCountProperty_JTextField = null;
 
 // List Drives tab.
 private JTextField __ListDrivesRegEx_JTextField = null;
@@ -282,12 +283,15 @@ public void actionPerformed( ActionEvent event ) {
         // Edit the dictionary in the dialog.  It is OK for the string to be blank.
         String DownloadFolders = __DownloadFolders_JTextArea.getText().trim();
         String [] notes = {
-            "Specify the Google Drive folder path (e.g., topfolder/childfolder/) to download.",
+            "Specify the Google Drive folder path using one of the following forms:",
+            "  /My Drive/path/to/folder/",
+            "  /path/to/folder/ (handled as if My Drive were specified)",
+            "  /Shared with me/path/to/folder/",
+            "  /Shared drives/drivename/path/to/folder/",
+            "  /id/identifier/",
             "Only folders (directories) can be downloaded. Specify files to download with the 'DownloadFiles' command parameter.",
-            "A leading / is equivalent to no leading /.",
-            "A trailing / is equivalent to no trailing /.",
+            "Leading and trailing / are required for consistency.",
             "The local folder is relative to the working folder.",
-            "Do not include 'My Drive' at the start of the folder.",
             "  " + this.__working_dir,
             "${Property} notation can be used for all values to expand at run time."
         };
@@ -302,11 +306,15 @@ public void actionPerformed( ActionEvent event ) {
         // Edit the dictionary in the dialog.  It is OK for the string to be blank.
         String DownloadFiles = __DownloadFiles_JTextArea.getText().trim();
         String [] notes = {
-            "Specify the Google drive file (e.g., topfolder/childfolder/file.ext) to download a file.",
-            "Only files can be downloaded.  Specify folders to download with the 'DownloadFolders' command parameter.",
-            "A leading / is equivalent to no leading /.",
-            "The local file name ending in /* will use the same file name as the Google Drive file.",
-            "The local file is relative to the working folder:",
+            "Specify the Google Drive folder path using one of the following forms:",
+            "  /My Drive/path/to/file",
+            "  /path/to/file (handled as if My Drive were specified)",
+            "  /Shared with me/path/to/file",
+            "  /Shared drives/drivename/path/to/file",
+            "  /id/identifier",
+            "Only files can be downloaded. Specify folders to download with the 'DownloadFolders' command parameter.",
+            "A leading / is required for consistency.",
+            "The local folder is relative to the working folder.",
             "  " + this.__working_dir,
             "${Property} notation can be used for all values to expand at run time."
         };
@@ -422,10 +430,11 @@ private void checkInput () {
 	// Download.
 	String DownloadFolders = __DownloadFolders_JTextArea.getText().trim().replace("\n"," ");
 	String DownloadFiles = __DownloadFiles_JTextArea.getText().trim().replace("\n"," ");
+	String DownloadCountProperty = __DownloadCountProperty_JTextField.getText().trim();
 	// List drives.
 	String ListDrivesRegEx = __ListDrivesRegEx_JTextField.getText().trim();
 	String ListDrivesCountProperty = __ListDrivesCountProperty_JTextField.getText().trim();
-	// List bucket objects.
+	// List.
 	String ListScope = __ListScope_JComboBox.getSelected();
 	String ListFolderPath = __ListFolderPath_JTextField.getText().trim();
 	String ListRegEx = __ListRegEx_JTextField.getText().trim();
@@ -484,6 +493,9 @@ private void checkInput () {
 	}
 	if ( (DownloadFiles != null) && !DownloadFiles.isEmpty() ) {
 		props.set ( "DownloadFiles", DownloadFiles );
+	}
+	if ( (DownloadCountProperty != null) && !DownloadCountProperty.isEmpty() ) {
+		props.set ( "DownloadCountProperty", DownloadCountProperty );
 	}
 	// List drives.
 	if ( (ListDrivesRegEx != null) && !ListDrivesRegEx.isEmpty() ) {
@@ -575,6 +587,7 @@ private void commitEdits () {
 	// Download.
 	String DownloadFolders = __DownloadFolders_JTextArea.getText().trim().replace("\n"," ");
 	String DownloadFiles = __DownloadFiles_JTextArea.getText().trim().replace("\n"," ");
+	String DownloadCountProperty = __DownloadCountProperty_JTextField.getText().trim();
 	// List drives.
 	String ListDrivesRegEx = __ListDrivesRegEx_JTextField.getText().trim();
 	String ListDrivesCountProperty = __ListDrivesCountProperty_JTextField.getText().trim();
@@ -612,6 +625,7 @@ private void commitEdits () {
 	// Download.
 	__command.setCommandParameter ( "DownloadFolders", DownloadFolders );
 	__command.setCommandParameter ( "DownloadFiles", DownloadFiles );
+	__command.setCommandParameter ( "DownloadCountProperty", DownloadCountProperty );
 	// List drives.
 	__command.setCommandParameter ( "ListDrivesRegEx", ListDrivesRegEx );
 	__command.setCommandParameter ( "ListDrivesCountProperty", ListDrivesCountProperty );
@@ -676,7 +690,7 @@ private void createGoogleDriveSession () {
     }
 
     // Set the UI text fields that indicate whether authentication worked.
-    
+
     if ( this.googleDriveSession == null ) {
         this.sessionProblem_JLabel.setText (
         	"<html><b>ERROR: User's Google Drive configuration is invalid.</b></html>" );
@@ -686,7 +700,7 @@ private void createGoogleDriveSession () {
     }
     else {
     	if ( this.googleDriveSession.isSessionAuthenticated() ) {
-    		this.sessionProblem_JLabel.setText ( "User's Google Drive configuration is authenticated." );
+    		this.sessionProblem_JLabel.setText ( "The user's Google Drive configuration is authenticated." );
     		this.sessionRecommendation_JLabel.setText( "Additional checks are performed when running the command." );
         	this.__CredentialsStatus_JTextField.setText("Authenticated");
     	}
@@ -731,10 +745,7 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     	"Google Drive stores folders and files using a long ID containing characters and numbers, which is used in URLs."),
 		0, ++y, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(main_JPanel, new JLabel (
-    	"However, this command uses folder and file names as shown in the My Drive folder."),
-		0, ++y, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(main_JPanel, new JLabel (
-    	"Google Drive paths for this command default to My Drive and should use forward slashes."),
+    	"However, this command uses paths and names separated by / as shown 'My Drive', 'Shared with me', and 'Shared drives'."),
 		0, ++y, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     if ( __working_dir != null ) {
     	JGUIUtil.addComponent(main_JPanel, new JLabel (
@@ -990,6 +1001,16 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     JGUIUtil.addComponent(download_JPanel, new SimpleJButton ("Edit","EditDownloadFiles",this),
         3, ++yDownload, 4, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST );
 
+    JGUIUtil.addComponent(download_JPanel, new JLabel("Download count property:"),
+        0, ++yDownload, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
+    __DownloadCountProperty_JTextField = new JTextField ( "", 30 );
+    __DownloadCountProperty_JTextField.setToolTipText("Specify the property name for the download result size, can use ${Property} notation");
+    __DownloadCountProperty_JTextField.addKeyListener ( this );
+    JGUIUtil.addComponent(download_JPanel, __DownloadCountProperty_JTextField,
+        1, yDownload, 1, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+    JGUIUtil.addComponent(download_JPanel, new JLabel ( "Optional - processor property to set as download count." ),
+        3, yDownload, 3, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
+
     // Panel for 'List Drives' parameters.
     int yListDrives = -1;
     JPanel listDrives_JPanel = new JPanel();
@@ -1002,7 +1023,7 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
 		0, ++yListDrives, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(listDrives_JPanel, new JLabel ("Use * in the regular expression as wildcards to filter the results."),
 		0, ++yListDrives, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listDrives_JPanel, new JLabel ("See the 'Output' tab to specify the output table and/or file for the bucket list."),
+    JGUIUtil.addComponent(listDrives_JPanel, new JLabel ("See the 'Output' tab to specify the output table and/or file for the drive list."),
 		0, ++yListDrives, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(listDrives_JPanel, new JSeparator(SwingConstants.HORIZONTAL),
     	0, ++yListDrives, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.HORIZONTAL, GridBagConstraints.WEST);
@@ -1020,11 +1041,11 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     JGUIUtil.addComponent(listDrives_JPanel, new JLabel("List drives count property:"),
         0, ++yListDrives, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
     __ListDrivesCountProperty_JTextField = new JTextField ( "", 30 );
-    __ListDrivesCountProperty_JTextField.setToolTipText("Specify the property name for the object list result size, can use ${Property} notation");
+    __ListDrivesCountProperty_JTextField.setToolTipText("Specify the property name for the list result size, can use ${Property} notation");
     __ListDrivesCountProperty_JTextField.addKeyListener ( this );
     JGUIUtil.addComponent(listDrives_JPanel, __ListDrivesCountProperty_JTextField,
         1, yListDrives, 1, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
-    JGUIUtil.addComponent(listDrives_JPanel, new JLabel ( "Optional - processor property to set as bucket count." ),
+    JGUIUtil.addComponent(listDrives_JPanel, new JLabel ( "Optional - processor property to set as drive count." ),
         3, yListDrives, 3, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
     // Panel for 'List' parameters:
@@ -1040,7 +1061,7 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
 		0, ++yList, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(list_JPanel, new JLabel (
     	"Limit the output using parameters as follows and by using the 'Regular expression', 'List files',"
-    	+ " 'List folders', 'List shared', and 'List trashed' filters."),
+    	+ " 'List folders', 'List shared with me', and 'List trashed' filters."),
 		0, ++yList, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     //String style = " style=\"border: 1px solid black; border-collapse: collapse; background-color: white;\"";
     String style = " style=\"border-collapse: collapse; border-spacing: 0px;\"";
@@ -1063,7 +1084,7 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     		+ "    <tr" + trStyle + ">"
     		+ "       <td" + tdStyle + ">Files in 'My Drive' root"
     		+ "       <td" + tdStyle + "><code>Folder</code></td>"
-    		+ "       <td" + tdStyle + "><code>/</code> or <code>/My Drive/</code> (will include shared files and folders if <code>ListShared=True</code>)</td>"
+    		+ "       <td" + tdStyle + "><code>/</code> or <code>/My Drive/</code> (will include shared files and folders if <code>ListSharedWithMe=True</code>)</td>"
     		+ "    </tr>"
     		+ "    <tr" + trStyle + ">"
     		+ "       <td" + tdStyle + ">Files in 'My Drive' folder</td>"
@@ -1076,19 +1097,19 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     		+ "       <td" + tdStyle + "><code>/Shared with me/folder/path/</code></td>"
     		+ "    </tr>"
     		+ "    <tr" + trStyle + ">"
-    		+ "       <td" + tdStyle + ">Files in 'Shared drives' folder (<b>not implemented</b>)</td>"
+    		+ "       <td" + tdStyle + ">Files in 'Shared drives' folder</td>"
     		+ "       <td" + tdStyle + "><code>Folder</code></td>"
-    		+ "       <td" + tdStyle + "><code>/Shared drives/drive/folder/path/</code></td>"
+    		+ "       <td" + tdStyle + "><code>/Shared drives/drivename/folder/path/</code></td>"
     		+ "    </tr>"
     		+ "    <tr" + trStyle + ">"
     		+ "       <td" + tdStyle + ">Files in folder given its Google Drive identifier</td>"
     		+ "       <td" + tdStyle + "><code>Folder</code></td>"
-    		+ "       <td" + tdStyle + "><code>/id/the-identifier/</code></td>"
+    		+ "       <td" + tdStyle + "><code>/id/identifier/</code></td>"
     		+ "    </tr>"
     		+ "    <tr" + trStyle + ">"
     		+ "       <td" + tdStyle + ">All files in folder and sub-folders (<b>not implemented</b>)</td>"
     		+ "       <td" + tdStyle + "><code>All</code></td>"
-    		+ "       <td" + tdStyle + "><code>/folder/path/</code> or <code>/My Drive/folder/path</code></td>"
+    		+ "       <td" + tdStyle + "><code>/folder/path/</code> or <code>/My Drive/folder/path/</code></td>"
     		+ "    </tr>"
     		+ "  </table>"
     		+ "</html>";
@@ -1225,10 +1246,10 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     JGUIUtil.addComponent(list_JPanel, new JLabel ( "Optional - maximum number of items read (default=no limit)."),
         3, yList, 2, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
-    JGUIUtil.addComponent(list_JPanel, new JLabel("List objects count property:"),
+    JGUIUtil.addComponent(list_JPanel, new JLabel("List count property:"),
         0, ++yList, 1, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.EAST);
     __ListCountProperty_JTextField = new JTextField ( "", 30 );
-    __ListCountProperty_JTextField.setToolTipText("Specify the property name for the bucket object list result size, can use ${Property} notation");
+    __ListCountProperty_JTextField.setToolTipText("Specify the property name for the list result size, can use ${Property} notation");
     __ListCountProperty_JTextField.addKeyListener ( this );
     JGUIUtil.addComponent(list_JPanel, __ListCountProperty_JTextField,
         1, yList, 1, 1, 1, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
@@ -1286,7 +1307,7 @@ private void initialize ( JFrame parent, GoogleDrive_Command command, List<Strin
     __main_JTabbedPane.addTab ( "Output", output_JPanel );
 
     JGUIUtil.addComponent(output_JPanel, new JLabel (
-    	"The following parameters are used with 'List' command."),
+    	"The following parameters are used with the 'List' and 'ListDrives' commands."),
 		0, ++yOutput, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
     JGUIUtil.addComponent(output_JPanel, new JLabel ("An output table and/or file can be created."),
 		0, ++yOutput, 8, 1, 0, 0, insetsTLBR, GridBagConstraints.NONE, GridBagConstraints.WEST);
@@ -1489,6 +1510,7 @@ private void refresh () {
 	// Download.
 	String DownloadFolders = "";
 	String DownloadFiles = "";
+	String DownloadCountProperty = "";
 	// List drives.
 	String ListDrivesRegEx = "";
 	String ListDrivesCountProperty = "";
@@ -1530,6 +1552,7 @@ private void refresh () {
 		// Download.
 		DownloadFolders = parameters.getValue ( "DownloadFolders" );
 		DownloadFiles = parameters.getValue ( "DownloadFiles" );
+		DownloadCountProperty = parameters.getValue ( "DownloadCountProperty" );
 		// List drives.
 		ListDrivesRegEx = parameters.getValue ( "ListDrivesRegEx" );
 		ListDrivesCountProperty = parameters.getValue ( "ListDrivesCountProperty" );
@@ -1639,18 +1662,24 @@ private void refresh () {
             __DeleteFoldersMinDepth_JTextField.setText ( DeleteFoldersMinDepth );
         }
 		*/
+		// Download.
         if ( DownloadFolders != null ) {
             __DownloadFolders_JTextArea.setText ( DownloadFolders );
         }
         if ( DownloadFiles != null ) {
             __DownloadFiles_JTextArea.setText ( DownloadFiles );
         }
+        if ( DownloadCountProperty != null ) {
+            __DownloadCountProperty_JTextField.setText ( DownloadCountProperty );
+        }
+        // List Drives.
         if ( ListDrivesRegEx != null ) {
             __ListDrivesRegEx_JTextField.setText ( ListDrivesRegEx );
         }
         if ( ListDrivesCountProperty != null ) {
             __ListDrivesCountProperty_JTextField.setText ( ListDrivesCountProperty );
         }
+        // List.
 		if ( JGUIUtil.isSimpleJComboBoxItem(__ListScope_JComboBox, ListScope,JGUIUtil.NONE, null, null ) ) {
 			__ListScope_JComboBox.select ( ListScope );
 		}
@@ -1826,6 +1855,7 @@ private void refresh () {
 	// Download.
 	DownloadFolders = __DownloadFolders_JTextArea.getText().trim().replace("\n"," ");
 	DownloadFiles = __DownloadFiles_JTextArea.getText().trim().replace("\n"," ");
+	DownloadCountProperty = __DownloadCountProperty_JTextField.getText().trim();
 	// List drives.
 	ListDrivesRegEx = __ListDrivesRegEx_JTextField.getText().trim();
 	ListDrivesCountProperty = __ListDrivesCountProperty_JTextField.getText().trim();
@@ -1866,6 +1896,7 @@ private void refresh () {
 	// Download.
 	props.add ( "DownloadFolders=" + DownloadFolders );
 	props.add ( "DownloadFiles=" + DownloadFiles );
+	props.add ( "DownloadCountProperty=" + DownloadCountProperty );
 	// List drives.
 	props.add ( "ListDrivesRegEx=" + ListDrivesRegEx );
 	props.add ( "ListDrivesCountProperty=" + ListDrivesCountProperty );

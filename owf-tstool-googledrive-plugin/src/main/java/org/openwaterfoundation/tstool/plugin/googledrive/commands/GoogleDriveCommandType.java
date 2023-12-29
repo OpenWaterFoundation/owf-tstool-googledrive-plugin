@@ -36,7 +36,7 @@ public enum GoogleDriveCommandType {
 
 	/**
 	Delete objects.
-	
+
 	*/
 	//DELETE_OBJECTS ( "DeleteObjects", "Delete Google Drive objects" ),
 
@@ -86,9 +86,10 @@ public enum GoogleDriveCommandType {
 	*/
 	public static List<GoogleDriveCommandType> getChoices() {
     	List<GoogleDriveCommandType> choices = new ArrayList<>();
+    	// List alphabetically.
     	choices.add ( GoogleDriveCommandType.DOWNLOAD );
-    	choices.add ( GoogleDriveCommandType.LIST_DRIVES );
     	choices.add ( GoogleDriveCommandType.LIST );
+    	choices.add ( GoogleDriveCommandType.LIST_DRIVES );
     	return choices;
 	}
 

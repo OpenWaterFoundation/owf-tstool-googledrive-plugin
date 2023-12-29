@@ -85,7 +85,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	*/
 	protected final String _AllFilesAndFolders = "AllFilesAndFolders";
 	protected final String _FolderFiles = "FolderFiles";
-	
+
 	/**
 	Data members used for ListObjectsScope parameter values.
 	*/
@@ -140,7 +140,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		super();
 		setCommandName ( "GoogleDrive" );
 	}
-	
+
 	/**
 	Check the command parameter for valid values, combination, etc.
 	@param parameters The parameters for the command.
@@ -657,7 +657,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		Message.printStatus(2, "", "OutputTableID=\"" + OutputTableID + "\" OutputFile=\"" + OutputFile + "\"");
 
 		// Check for invalid parameters.
-		List<String> validList = new ArrayList<>(29);
+		List<String> validList = new ArrayList<>(30);
 		// General.
 		validList.add ( "SessionID" );
 		validList.add ( "AuthenticationMethod" );
@@ -674,6 +674,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		// Download.
 		validList.add ( "DownloadFolders" );
 		validList.add ( "DownloadFiles" );
+		validList.add ( "DownloadCountProperty" );
 		// List buckets.
 		validList.add ( "ListDrivesRegEx" );
 		validList.add ( "ListDrivesCountProperty" );
@@ -685,8 +686,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		validList.add ( "ListFolders" );
 		validList.add ( "ListSharedWithMe" );
 		validList.add ( "ListTrashed" );
-		validList.add ( "MaxKeys" );
-		validList.add ( "MaxObjects" );
+		validList.add ( "ListMax" );
 		validList.add ( "ListCountProperty" );
 		// Upload.
 		validList.add ( "UploadFolders" );
@@ -715,6 +715,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		GoogleDriveSession googleDriveSession,
 		List<String> downloadFilesGoogleDrivePaths, List<String> downloadFilesFiles,
 		List<String> downloadFoldersGoogleDrivePaths, List<String> downloadFoldersFolders,
+		String downloadCountProperty,
 		CommandStatus status, int logLevel, int warningLevel, int warningCount, String commandTag
 		) {
 		String routine = getClass().getSimpleName() + ".doGoogleDriveDownload";
@@ -727,6 +728,9 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     		}
     		return warningCount;
     	}
+
+		// Get the toolkit with useful methods.
+		GoogleDriveToolkit googleDriveToolkit = GoogleDriveToolkit.getInstance();
 
     	// Process folders first so that files can be downloaded into folders below.
 
@@ -802,7 +806,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	*/
 
       	// Download files individually.
-      	
+
       	int downloadCount = 0;
     	if ( downloadFilesFiles.size() > 0 ) {
     		// Process each file in the list.
@@ -826,11 +830,11 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	    				}
 	    				folder.mkdirs();
 	    			}
-    				
+
     				if ( !error ) {
     					// Convert the requested file path to a file ID:
     					String downloadFilePath = downloadFilesGoogleDrivePaths.get(iFile);
-    					String downloadFileId = GoogleDriveToolkit.getInstance().getFileIdForPath (
+    					String downloadFileId = googleDriveToolkit.getFileIdForPath (
     						googleDriveSession.getService(), downloadFilePath );
     					if ( downloadFileId == null ) {
 							message = "Error getting Google Drive ID for file path \"" + downloadFilePath + "\".";
@@ -854,6 +858,13 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
        								// Invoke the remote operation.
        								.executeMediaAndDownloadTo(outputStream);
 
+   								// Seem to need to close the stream?
+   								try {
+   									outputStream.close();
+   								}
+   								catch ( Exception e ) {
+   									// Ignore.
+   								}
    								// Successful if no exception.
    								++downloadCount;
    							}
@@ -881,6 +892,26 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	    	}
     		}
       	}
+
+    	Message.printStatus ( 2, routine, "Downloaded " + downloadCount + " files." );
+    	// Set the property indicating the number of downloads.
+       	if ( (downloadCountProperty != null) && !downloadCountProperty.equals("") ) {
+           	PropList requestParams = new PropList ( "" );
+           	requestParams.setUsingObject ( "PropertyName", downloadCountProperty );
+           	requestParams.setUsingObject ( "PropertyValue", new Integer(downloadCount) );
+           	try {
+               	processor.processRequest( "SetProperty", requestParams);
+           	}
+           	catch ( Exception e ) {
+               	message = "Error requesting SetProperty(" + downloadCountProperty + "=\"" + downloadCount + "\") from processor.";
+               	Message.printWarning(logLevel,
+                   	MessageUtil.formatMessageTag( commandTag, ++warningCount),
+                   	routine, message );
+                    	status.addToLog ( CommandPhaseType.RUN,
+                   	new CommandLogRecord(CommandStatusType.FAILURE,
+                       	message, "Report the problem to software support." ) );
+           	}
+       	}
 
     	// Return the updated warning count.
     	return warningCount;
@@ -912,11 +943,11 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 
 		// Get the toolkit with useful methods.
 		GoogleDriveToolkit googleDriveToolkit = GoogleDriveToolkit.getInstance();
-		
+
    		// Folder to list:
    		// - convert the G: drive path to a folder ID
    		// - do not include "My Drive" in the path
-		
+
 		StringBuilder q = new StringBuilder();
 		String folderId = null;
 		if ( listFolderPath.equals("/")
@@ -936,9 +967,9 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			// List a specific folder.
 			String folderPath = listFolderPath;
 			try {
-				if ( listFolderPath.startsWith("/id/") ) {
+				if ( folderPath.startsWith("/id/") ) {
 					// Specifying the Google Drive folder ID to list.
-					folderId = listFolderPath.substring(4);
+					folderId = folderPath.substring(4);
 					if ( folderId.endsWith("/") ) {
 						// Remove the trailing slash.
 						folderId = folderId.substring(0, folderId.length() - 1);
@@ -984,7 +1015,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			// - do not specify sharedWithMe=true because that only applies to top-level folders.
 			q = new StringBuilder("'" + folderId + "' in parents and trashed=" + listTrashed );
 		}
-		
+
 		Message.printStatus(2, routine, "Listing files in folder using q=" + q);
 
    		// Output the names and IDs for up to 10 files.
@@ -1007,6 +1038,10 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
    				// Set the folder to list:
    				// See: https://developers.google.com/drive/api/guides/search-files
    				.setQ(q.toString())
+   				// Whether files from My Drive and shared drives should be listed in the result.
+   				.setIncludeItemsFromAllDrives(true)
+   				// Whether the application supports My Drive and shared drives.
+   				.setSupportsAllDrives(true)
    				// Page size for returned files:
    				// - currently use the maximum of 1000
    				// - TODO smalers 2023-12-27 need to implement paging
@@ -1034,22 +1069,22 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		 			message, "See the log file for details."));
 		 	throw new CommandException ( message );
    		}
-   		
+
    		// Process the result files and if necessary make additional requests.
 		int fileCount = 0;
 		int folderCount = 0;
 		int objectCount = 0;
-		// Page count is used for output messgaes.
+		// Page count is used for output messages.
 		int pageCount = 0;
    		while ( (result.getFiles() != null) && (result.getFiles().size() > 0) ) {
    			++pageCount;
    			List<com.google.api.services.drive.model.File> files = result.getFiles();
    			if ( (files == null) || files.isEmpty() ) {
-   				Message.printStatus(2, routine, "No more files found (page=" + pageCount + ").");
+   				Message.printStatus(2, routine, "No more files/folders found (page=" + pageCount + ").");
    			}
    			else {
    				// Have files and folders to process.
-   				Message.printStatus(2, routine, "Processing " + files.size() + " files (page=" + pageCount + ").");
+   				Message.printStatus(2, routine, "Processing " + files.size() + " files/folders (page=" + pageCount + ").");
    				// Do not allow duplicates in the output.
    				boolean allowDuplicates = false;
    				TableRecord rec = null;
@@ -1127,7 +1162,13 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 								// - only need to do this if the parent ID has changed
 								// - most of the time a single folder is being listed
 								Drive service = googleDriveSession.getService();
-								parentPath = googleDriveToolkit.getParentFolderPathFromFolderId(service, parentId);
+								try {
+									parentPath = googleDriveToolkit.getParentFolderPathFromFolderId(service, parentId);
+								}
+								catch ( Exception e ) {
+									// Swallow for now:
+									// - TODO smalers 2023-12-28 why does this happen?
+								}
 							}
 							parentIdPrev = parentId;
 						}
@@ -1189,7 +1230,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
    						rec.setFieldValue(listOriginalFilenameCol, file.getOriginalFilename());
    						rec.setFieldValue(listWebViewLinkCol, file.getWebViewLink());
    					}
- 					
+
  					// Break out of the loop if the object count has been reached.
  					if ( (listMax > 0) && (objectCount == listMax) ) {
  						break;
@@ -1206,7 +1247,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			if ( (listMax > 0) && (objectCount == listMax) ) {
 				break;
 			}
-   		
+
    			// Get the next page of results.
    			String nextPageToken = result.getNextPageToken();
    			if ( nextPageToken == null ) {
@@ -1255,7 +1296,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		String regex,
 		DataTable table,
 		int driveCreationTimeCol, int driveIdCol, int driveNameCol,
-		String listCountProperty,
+		String listDrivesCountProperty,
 		CommandStatus status, int logLevel, int warningLevel, int warningCount, String commandTag
 		)
 		throws CommandException, Exception {
@@ -1264,7 +1305,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 
 		// Get the toolkit with useful methods.
 		//GoogleDriveToolkit googleDriveToolkit = GoogleDriveToolkit.getInstance();
-		
+
    		// Output the names and IDs for up to 10 files.
    		DriveList result = null;
    		Drive.Drives.List request = null;
@@ -1290,7 +1331,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		 			message, "See the log file for details."));
 		 	throw new CommandException ( message );
    		}
-   		
+
    		// Process the result files and if necessary make additional requests.
 		int driveCount = 0;
 		int pageCount = 0;
@@ -1356,16 +1397,16 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 
     	Message.printStatus ( 2, routine, "List has driveCount=" + driveCount );
     	// Set the property indicating the number of drives.
-       	if ( (listCountProperty != null) && !listCountProperty.equals("") ) {
+       	if ( (listDrivesCountProperty != null) && !listDrivesCountProperty.equals("") ) {
        		int numObjects = table.getNumberOfRecords();
            	PropList requestParams = new PropList ( "" );
-           	requestParams.setUsingObject ( "PropertyName", listCountProperty );
+           	requestParams.setUsingObject ( "PropertyName", listDrivesCountProperty );
            	requestParams.setUsingObject ( "PropertyValue", new Integer(numObjects) );
            	try {
                	processor.processRequest( "SetProperty", requestParams);
            	}
            	catch ( Exception e ) {
-               	message = "Error requesting SetProperty(" + listCountProperty + "=\"" + numObjects + "\") from processor.";
+               	message = "Error requesting SetProperty(" + listDrivesCountProperty + "=\"" + numObjects + "\") from processor.";
                	Message.printWarning(logLevel,
                    	MessageUtil.formatMessageTag( commandTag, ++warningCount),
                    	routine, message );
@@ -1397,7 +1438,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 	private DataTable getDiscoveryTable() {
     	return this.discoveryOutputTable;
 	}
-	
+
 	/**
 	Return the list of files that were created by this command.
 	*/
@@ -1455,7 +1496,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 
 	// Useful examples:
 	// https://technicalsand.com/file-operations-in-google-drive-api-with-spring-boot/
-	
+
 	/**
 	Run the command.
 	@param commandNumber Number of command in sequence (1+).
@@ -1510,9 +1551,9 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 					new CommandLogRecord(CommandStatusType.FAILURE,
 						message, "See the log file for details."));
 				throw new CommandException ( message );
-			}	
+			}
 		}
-		
+
 		// Get command parameters for: Copy - CopyFiles
 
 		// Copy.
@@ -1616,7 +1657,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		       					status.addToLog ( commandPhase, new CommandLogRecord(CommandStatusType.WARNING,
 			   						message, "Fix the file destination key to equal * or end in /*." ) );
 		       					continue;
-           					}	
+           					}
             			}
             			// Add to the lists for further processing.
             			//uploadFilesOrig.add(localFile);
@@ -1824,7 +1865,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	}
 
     	// Get command parameters for: Download - DownloadFiles
-    	
+
     	String DownloadFiles = parameters.getValue ( "DownloadFiles" );
 		DownloadFiles = TSCommandProcessorUtil.expandParameterValue(processor,this,DownloadFiles);
 		// Can't use a hashtable because sometimes download the same files to multiple local locations.
@@ -1940,6 +1981,10 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
             	}
         	}
     	}
+    	String DownloadCountProperty = parameters.getValue ( "DownloadCountProperty" );
+    	if ( commandPhase == CommandPhaseType.RUN ) {
+    		DownloadCountProperty = TSCommandProcessorUtil.expandParameterValue(processor, this, DownloadCountProperty);
+    	}
 
 		// Get command parameters for: List Drives
 
@@ -2023,7 +2068,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		  		listRegEx = ListRegEx.replace("*", ".*");
 	  		}
 		}
-    		
+
 		// Get command parameters for: Upload - UploadFolders
 
     	/*
@@ -2365,7 +2410,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		}
 
 		// Have processed input. Now run the command.
-		
+
 		try {
 			if ( commandPhase == CommandPhaseType.RUN ) {
 				// Create a session, which has the credential.
@@ -2625,6 +2670,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
     	    			googleDriveSession,
     	    			downloadFilesGoogleDrivePaths, downloadFilesFiles,
     	    			downloadFoldersGoogleDrivePaths, downloadFoldersDirectories,
+    	    			DownloadCountProperty,
     	    			status, logLevel, warningLevel, warningCount, commandTag );
     	    	}
     	    	else if ( googleDriveCommand == GoogleDriveCommandType.LIST_DRIVES ) {
@@ -2839,6 +2885,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 			// Download.
 			"DownloadFolders",
 			"DownloadFiles",
+			"DownloadCountProperty",
 			// List drives.
 			"ListDrivesRegEx",
 			"ListDrivesCountProperty",

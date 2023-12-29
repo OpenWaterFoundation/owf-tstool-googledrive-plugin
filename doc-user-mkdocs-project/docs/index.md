@@ -19,7 +19,7 @@ This documentation has been updated for:
 TSTool has been developed by the [Open Water Foundation (OWF)](https://openwaterfoundation.org) with significant
 funding by the State of Colorado and other sources.
 
-The AWS plugin has been developed with funding from the Open Water Foundation and TriLynx Systems.
+The Google Drive plugin has been developed with funding from the Open Water Foundation and TriLynx Systems.
 
 ## How to Use this Documentation ##
 

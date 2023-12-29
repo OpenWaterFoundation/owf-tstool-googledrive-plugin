@@ -16,4 +16,5 @@ The repository issue for release note item is shown where applicable.
 **Initial release.**
 
 *   ![new](new.png) [1.0.0] The initial release includes the following command:
-    +   [`GooogleDrive`](../command-ref/GoogleDrive/GoogleDrive.md) with features to list and download files
+    +   [`GooogleDrive`](../command-ref/GoogleDrive/GoogleDrive.md) command with functioning `Download`, `List`, and `ListDrives` commands
+        for OAuth and service account authentication.

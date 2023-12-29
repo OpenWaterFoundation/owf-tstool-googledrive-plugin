@@ -19,7 +19,7 @@ EndIf(Name="IfDeleteCheck")
 AwsS3(S3Command="UploadObjects",Region="us-west-2",Bucket="test.openwaterfoundation.org",UploadFolders="data/testfolder2:${TestS3Folder}/testfolder2/",UploadFiles="data/root-testfile1.txt:${TestS3Folder}/*,data/root-testfile2.txt:${TestS3Folder}/*,data/testfolder1/testfolder1-testfile1.txt:${TestS3Folder}/testfolder1/*,data/testfolder1/testfolder1-testfile2.txt:${TestS3Folder}/testfolder1/*",OutputTableID="BucketList")
 */
 # SetDebugLevel(LogFileLevel=1)
-GoogleDrive(SessionID="TSTool",AuthenticationMethod="OAuth",GoogleDriveCommand="List",ListScope="Folder",ListFolderPath="${TestGoogleDriveFolder}/",ListTrashed="False",ListCountProperty="TestListCount",OutputTableID="TestList")
+GoogleDrive(SessionID="TSTool",AuthenticationMethod="OAuth",GoogleDriveCommand="List",ListScope="Folder",ListFolderPath="${TestGoogleDriveFolder}/",ListCountProperty="TestListCount",OutputTableID="TestList")
 # SetDebugLevel(ScreenLevel=0,LogFileLevel=0)
 If(Name="IfTestListCount",Condition="${TestListCount} != 5")
 Message(Message="Error - should be 5 (2 files, 3 folders) if the objects are correctly uploaded (have ${TestListCount}).",CommandStatus="FAILURE")
