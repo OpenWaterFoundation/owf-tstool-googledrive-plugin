@@ -1538,7 +1538,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 		String SessionID = parameters.getValue ( "SessionID" );
 		String AuthenticationMethod = parameters.getValue ( "AuthenticationMethod" );
 		GoogleDriveAuthenticationMethodType authenticationMethod = null;
-		if ( AuthenticationMethod == null ) {
+		if ( (AuthenticationMethod == null) || AuthenticationMethod.isEmpty()) {
 			authenticationMethod = GoogleDriveAuthenticationMethodType.SERVICE_ACCOUNT_KEY; // Default.
 		}
 		else {

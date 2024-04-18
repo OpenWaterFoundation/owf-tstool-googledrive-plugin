@@ -9,8 +9,8 @@ This plugin allows automation of workflows that use Google Drive.
 
 This documentation has been updated for:
 
-*   TSTool version 14.9.1
-*   TSTool Google Drive plugin version 1.0.0
+*   TSTool version 14.9.4
+*   TSTool Google Drive plugin version 1.0.1
 
 ----------------
 
@@ -19,7 +19,9 @@ This documentation has been updated for:
 TSTool has been developed by the [Open Water Foundation (OWF)](https://openwaterfoundation.org) with significant
 funding by the State of Colorado and other sources.
 
-The Google Drive plugin has been developed with funding from the Open Water Foundation and TriLynx Systems.
+The Google Drive plugin has been developed with funding from the
+[Open Water Foundation](https://openwaterfoundation.org) and
+[TriLynx Systems](https://trilynx.systems).
 
 ## How to Use this Documentation ##
 
