@@ -7,9 +7,17 @@ See the [TSTool release notes](http://opencdss.state.co.us/tstool/latest/doc-use
 Plugin release notes are listed below.
 The repository issue for release note item is shown where applicable.
 
+*   [Version 1.0.1](#version-101)
 *   [Version 1.0.0](#version-100)
 
 ----------
+
+## Version 1.0.1 ##
+
+**Maintenance release to fix authentication.**
+
+*   ![new](new.png) [1.0.1] Minor fix to deal with default authentication method in the
+    [`GooogleDrive`](../command-ref/GoogleDrive/GoogleDrive.md) command.
 
 ## Version 1.0.0 ##
 

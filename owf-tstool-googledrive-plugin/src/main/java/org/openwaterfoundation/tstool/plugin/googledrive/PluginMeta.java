@@ -2,21 +2,21 @@
 
 /* NoticeStart
 
-OWF AWS TSTool Plugin
-Copyright (C) 2022-2023 Open Water Foundation
+OWF TSTool GoogleDrive Plugin
+Copyright (C) 2022-2024 Open Water Foundation
 
-OWF TSTool AWS Plugin is free software:  you can redistribute it and/or modify
+OWF TSTool GoogleDrive Plugin is free software:  you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-OWF TSTool AWS Plugin is distributed in the hope that it will be useful,
+OWF TSTool GoogleDrive Plugin is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-    along with OWF TSTool AWS Plugin.  If not, see <https://www.gnu.org/licenses/>.
+    along with OWF TSTool GoogleDrive Plugin.  If not, see <https://www.gnu.org/licenses/>.
 
 NoticeEnd */
 
@@ -26,7 +26,7 @@ public class PluginMeta {
 	/**
 	 * Plugin version.
 	 */
-	public static final String VERSION = "1.0.0 (2023-12-29)";
+	public static final String VERSION = "1.0.1 (2024-04-17)";
 	
 	/**
 	 * Get the documentation root URL, used for command help.
