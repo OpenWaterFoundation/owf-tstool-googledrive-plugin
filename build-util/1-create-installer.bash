@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Create the plugin installer file for the download website:
-# - the current files in the following folder are zipped
+# - the current files in the following folder are zipped, keeping the plugin main folder:
 #   ./tstool/NN/plugins/owf-tstool-googledrive-plugin/
 # - output is to the plugin 'dist' folder with filename like:
 #     tstool-googledrive-plugin-1.0.0-win-2206060102.zip
@@ -32,7 +32,7 @@ checkOperatingSystem() {
   echoStderr "[INFO] operatingSystem=${operatingSystem} (used to check for Cygwin and filemode compatibility)"
 
   if [ "${operatingSystem}" != "mingw" ]; then
-    echoStderr "[ERROR] ${errorColor}Currently this script only works for MINGW (Git Bash)${endColor}"
+    echoStderr "${errorColor}[ERROR] Currently this script only works for MINGW (Git Bash)${endColor}"
     exit 1
   fi
 }
@@ -77,11 +77,13 @@ createPluginZipFile() {
     echoStderr "[INFO] Removing existing zip file:  ${zipFile}"
     rm -f "${zipFile}"
   fi
-  # Change to the plugins folder.
+  # Change to the plugins folder:
+  # - only want to include the specific version,
+  #   but also include the parent of the version folder
   cd ${pluginsFolder}
   echoStderr "[INFO] Running 7zip to create zip file:  ${zipFile}"
   echoStderr "[INFO] Current folder is:  ${pluginsFolder}"
-  "${sevenzip}" a -tzip ${zipFile} owf-tstool-googledrive-plugin
+  "${sevenzip}" a -tzip ${zipFile} "owf-tstool-googledrive-plugin/${pluginVersion}"
   exitStatus=$?
   if [ ${exitStatus} -ne 0 ]; then
     echoStderr "[INFO] Error running 7zip, exit status (${exitStatus})."
@@ -182,15 +184,27 @@ fi
 # - put after determining versions
 # - the folders adhere to Maven folder structure
 devBinFolder="${repoFolder}/owf-tstool-googledrive-plugin/target/classes"
+
+# Main folder for installed plugins.
 pluginsFolder="${HOME}/.tstool/${tstoolMajorVersion}/plugins"
+
+# Main installed folder for the plugin.
 jarFolder="${pluginsFolder}/owf-tstool-googledrive-plugin"
-pluginDepFolder="${pluginsFolder}/owf-tstool-googledrive-plugin/dep"
-jarFile="${jarFolder}/owf-tstool-googledrive-plugin-${pluginVersion}.jar"
+
+# Version installed folder for the plugin.
+versionPluginFolder="${mainPluginFolder}/${pluginVersion}"
+
+# Jar file for the plugin.
+jarFile="${versionPluginFolder}/owf-tstool-googledrive-plugin-${pluginVersion}.jar"
+
+# Folder for dependencies.
+pluginDepFolder="${versionPluginsFolder}/dep"
+
 now=$(date +%Y%m%d%H%M)
 zipFile="${distFolder}/tstool-googledrive-plugin-${pluginVersion}-win-${now}.zip"
 
 # Create the local plugin files to make sure they are current.
-echoStderr "Creating the jar file with current development files..."
+echoStderr "[INFO] Creating the jar file with current development files..."
 ${scriptFolder}/0-create-plugin-jar.bash
 if [ $? -ne 0 ]; then
   echoStderr "[ERROR] Error creating plugin jar file."

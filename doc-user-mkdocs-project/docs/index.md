@@ -9,8 +9,10 @@ This plugin allows automation of workflows that use Google Drive.
 
 This documentation has been updated for:
 
-*   TSTool version 14.9.4
-*   TSTool Google Drive plugin version 1.0.1
+*   TSTool version 15.0.0
+*   TSTool Google Drive plugin version 2.0.0
+
+**TSTool 15.0.0 or later is required for this version of the plugin due to Java being updated to version 11.**
 
 ----------------
 
