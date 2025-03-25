@@ -3,7 +3,7 @@
 /* NoticeStart
 
 OWF TSTool Google Drive Plugin
-Copyright (C) 2023 Open Water Foundation
+Copyright (C) 2023-2025 Open Water Foundation
 
 OWF TSTool Google Drive Plugin is free software:  you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -898,7 +898,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
        	if ( (downloadCountProperty != null) && !downloadCountProperty.equals("") ) {
            	PropList requestParams = new PropList ( "" );
            	requestParams.setUsingObject ( "PropertyName", downloadCountProperty );
-           	requestParams.setUsingObject ( "PropertyValue", new Integer(downloadCount) );
+           	requestParams.setUsingObject ( "PropertyValue", Integer.valueOf(downloadCount) );
            	try {
                	processor.processRequest( "SetProperty", requestParams);
            	}
@@ -1268,7 +1268,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
        		int numObjects = table.getNumberOfRecords();
            	PropList requestParams = new PropList ( "" );
            	requestParams.setUsingObject ( "PropertyName", listCountProperty );
-           	requestParams.setUsingObject ( "PropertyValue", new Integer(numObjects) );
+           	requestParams.setUsingObject ( "PropertyValue", Integer.valueOf(numObjects) );
            	try {
                	processor.processRequest( "SetProperty", requestParams);
            	}
@@ -1401,7 +1401,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
        		int numObjects = table.getNumberOfRecords();
            	PropList requestParams = new PropList ( "" );
            	requestParams.setUsingObject ( "PropertyName", listDrivesCountProperty );
-           	requestParams.setUsingObject ( "PropertyValue", new Integer(numObjects) );
+           	requestParams.setUsingObject ( "PropertyValue", Integer.valueOf(numObjects) );
            	try {
                	processor.processRequest( "SetProperty", requestParams);
            	}
@@ -1516,7 +1516,7 @@ implements CommandDiscoverable, FileGenerator, ObjectListProvider
 
     	CommandProcessor processor = getCommandProcessor();
 		CommandStatus status = getCommandStatus();
-    	Boolean clearStatus = new Boolean(true); // Default.
+    	Boolean clearStatus = Boolean.valueOf(true); // Default.
     	try {
     		Object o = processor.getPropContents("CommandsShouldClearRunStatus");
     		if ( o != null ) {
